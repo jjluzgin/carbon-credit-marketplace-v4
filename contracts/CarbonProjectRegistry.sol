@@ -13,6 +13,7 @@ contract CarbonProjectRegistry is AccessControl {
         // Verifier verifierBody; Move inside ipfs
         bytes32 uniqueVerificationId;
         address projectOwner;
+        address auditor;
         uint256 authenticationDate;
         uint256 carbonRemoved;
         uint256 creditsIssued;
@@ -53,13 +54,14 @@ contract CarbonProjectRegistry is AccessControl {
             status: ProjectStatus.Pending,
             ipfsCID: _ipfsCID,
             projectOwner: msg.sender,
+            auditor: address(0),
             authenticationDate: 0,
             carbonRemoved: _carbonReduction,
             uniqueVerificationId: projectHash,
             creditsIssued: 0
         });
         registeredProjects[projectHash] = true;
-        emit ProjectAdded(msg.sender, projectCount, _carbonReduction, _ipfsCID);
+        emit ProjectAdded(projectCount, msg.sender, _verificationId, ProjectStatus.Pending, _carbonReduction, _ipfsCID);
         projectCount++;
     }
 
@@ -80,6 +82,7 @@ contract CarbonProjectRegistry is AccessControl {
                 revert ProjectAlreadyAudited();
         }
         projects[_projectId].ipfsCID = _newIpfsCID;
+        projects[_projectId].auditor = address(0);
         projects[_projectId].status = ProjectStatus.Pending;
     }
 
@@ -92,6 +95,7 @@ contract CarbonProjectRegistry is AccessControl {
             revert ProjectNotFound();
         projects[_projectId].status = ProjectStatus.Audited;
         projects[_projectId].authenticationDate = block.timestamp;
+        projects[_projectId].auditor = msg.sender;
         projects[_projectId].creditsIssued = getRiskCorrectedCreditAmount(projects[_projectId].carbonRemoved);
     }
     
@@ -101,6 +105,7 @@ contract CarbonProjectRegistry is AccessControl {
         if(projects[_projectId].status == ProjectStatus.Audited)
             revert ProjectAlreadyAudited();
         projects[_projectId].status = ProjectStatus.Rejected;
+        projects[_projectId].auditor = msg.sender;
     }
 
     function projectExists(uint256 _projectId) public view returns (bool) {
@@ -127,8 +132,10 @@ contract CarbonProjectRegistry is AccessControl {
     error UnauthorizedAccount(address account, bytes32[2] neededRoles);
 
     event ProjectAdded(
-        address indexed projectOwner,
         uint256 indexed projectId,
+        address indexed projectOwner,
+        string verificationId,
+        ProjectStatus status,
         uint256 carbonReduced,
         string ipfsCID
     );

@@ -12,6 +12,21 @@ contract CarbonCreditToken is ERC1155, ERC1155Burnable, AccessControl, ERC1155Su
     bytes32 public constant TOKEN_MANAGER_ROLE = keccak256("TOKEN_MANAGER_ROLE");
     CarbonProjectRegistry public projectRegistry;
 
+    // Struct to track individual retirement records
+    struct RetirementRecord {
+        uint256 projectId;
+        uint256 amount;
+        uint256 timestamp;
+        string description;
+        address retiree;
+    }
+
+    // Mapping to store retirement history per user
+    mapping(address => RetirementRecord[]) internal userRetirementHistory;
+
+    // Mapping to store total retirements per project
+    mapping(uint256 => uint256) internal projectTotalRetirements;
+
     constructor(
         address _defaultAdmin, 
         address _manager, 
@@ -79,6 +94,16 @@ contract CarbonCreditToken is ERC1155, ERC1155Burnable, AccessControl, ERC1155Su
 
         _burn(msg.sender, _projectId, _amount);
 
+        userRetirementHistory[msg.sender].push(RetirementRecord({
+            projectId: _projectId,
+            amount: _amount,
+            timestamp: block.timestamp,
+            description: _description,
+            retiree: msg.sender
+        }));
+
+        projectTotalRetirements[_projectId] += _amount;
+
         // Emit retirement event
         emit CreditRetired(
             msg.sender, 
@@ -87,6 +112,18 @@ contract CarbonCreditToken is ERC1155, ERC1155Burnable, AccessControl, ERC1155Su
             block.timestamp,
             _description
         );
+    }
+
+    function getUserRetirementHistory(
+        address _user
+    ) external view returns (RetirementRecord[] memory) {
+        return userRetirementHistory[_user];
+    }
+
+    function getProjectTotalRetirements(
+        uint256 _projectId
+    ) external view returns (uint256) {
+        return projectTotalRetirements[_projectId];
     }
 
     function _update(address from, address to, uint256[] memory ids, uint256[] memory values)
