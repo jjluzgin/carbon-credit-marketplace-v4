@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, Unique, CreateDateColumn, Updat
 import { ProjectStatus } from "../constants"
 
 @Entity({name: "projects"})
-@Unique(["projectId"])
+@Unique(["projectId", "verificationId"])
 export class Project {
 
     @PrimaryGeneratedColumn("uuid")
@@ -32,8 +32,8 @@ export class Project {
     @Column({type: "int", default: ProjectStatus.Pending})
     status: number
 
-    @Column()
-    authenticationDate: Date
+    @Column({default: 0})
+    authenticationDate: number
 
     @CreateDateColumn()
     createdAt: Date;

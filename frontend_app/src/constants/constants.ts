@@ -30,11 +30,11 @@ export const projectRegistryContract = getContract({
   address: projectRegistryContractAddress,
 });
 
-export const carbonTokenContract = getContract({
-  client: client,
-  chain: baseChain,
-  address: projectRegistryContractAddress,
-});
+// export const carbonTokenContract = getContract({
+//   client: client,
+//   chain: baseChain,
+//   address: projectRegistryContractAddress,
+// });
 
 // export const marketplaceContract = getContract({
 //   client: client,

@@ -10,6 +10,8 @@ import {
   auditorRole,
   projectOwnerRole,
 } from "@/constants/constants";
+import UserProjectsTable from "./UserProjectsTable";
+import PendingProjectsTable from "./PendingProjectsTable";
 
 export default function MarketplaceDashboard() {
   const account = useActiveAccount();
@@ -65,15 +67,13 @@ export default function MarketplaceDashboard() {
                 <CardTitle>Project Management</CardTitle>
               </CardHeader>
               <CardContent>
-                <Tabs defaultValue="submit" className="w-full">
+                <Tabs className="w-full">
                   {/* Tab List */}
                   <TabsList className="flex gap-2">
-                    <TabsTrigger value="submit">Submit Project</TabsTrigger>
-                    {IsProjectOwner && (<TabsTrigger value="my-projects">My Projects</TabsTrigger>)}
-                    <TabsTrigger value="to-review">
-                      Projects To Review
-                    </TabsTrigger>
-                    <TabsTrigger value="mint">Mint Tokens</TabsTrigger>
+                    {IsProjectOwner && <TabsTrigger value="submit">Submit Project</TabsTrigger>}
+                    {IsProjectOwner && <TabsTrigger value="my-projects">My Projects</TabsTrigger>}
+                    {isAuditor && <TabsTrigger value="to-review">Projects To Review</TabsTrigger>}
+                    {isAuditor && <TabsTrigger value="mint">Mint Tokens</TabsTrigger>}
                   </TabsList>
 
                   {/* Tab Contents */}
@@ -81,10 +81,10 @@ export default function MarketplaceDashboard() {
                     <ProjectSubmissionCard/>
                   </TabsContent>
                   <TabsContent value="my-projects">
-                    <p>Content for My Projects Tab</p>
+                    <UserProjectsTable/>
                   </TabsContent>
                   <TabsContent value="to-review">
-                    <p>Content for Projects To Review Tab</p>
+                    <PendingProjectsTable/>
                   </TabsContent>
                   <TabsContent value="mint">
                     <p>Content for Mint Tokens Tab</p>

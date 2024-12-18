@@ -9,4 +9,22 @@ Router.get(
     ProjectController.getPendingProjects
 );
 
+Router.get(
+    "/userProjects/:owner",  
+    //authentification,
+    ProjectController.getUserProjects
+);
+
+Router.post(
+    "/addProject",
+    // authentification,
+    ProjectController.addProject
+);
+
+Router.post(
+    "/updateProject/:projectId",
+    // authentification,
+    ProjectController.updateProject
+);
+
 export {Router as projectRouter};
