@@ -12,6 +12,8 @@ import {
 } from "@/constants/constants";
 import UserProjectsTable from "./UserProjectsTable";
 import PendingProjectsTable from "./PendingProjectsTable";
+import IssueCreditsCard from "./IssueCreditsCard";
+import UserTokens from "./UserTokens";
 
 export default function MarketplaceDashboard() {
   const account = useActiveAccount();
@@ -59,7 +61,9 @@ export default function MarketplaceDashboard() {
       <div className="container mx-auto grid grid-rows-2 gap-4 p-4 flex-grow">
         {/* First Row */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg shadow p-4"></div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <UserTokens/>
+          </div>
           <div className="col-span-2 bg-white rounded-lg shadow p-4">
             {/* ShadCN Card with Tabs */}
             <Card>
@@ -87,7 +91,7 @@ export default function MarketplaceDashboard() {
                     <PendingProjectsTable/>
                   </TabsContent>
                   <TabsContent value="mint">
-                    <p>Content for Mint Tokens Tab</p>
+                    <IssueCreditsCard/>
                   </TabsContent>
                 </Tabs>
               </CardContent>

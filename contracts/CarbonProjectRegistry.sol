@@ -156,6 +156,12 @@ contract CarbonProjectRegistry is AccessControl {
         return projects[_projectId].creditsIssued;
     }
 
+    function getProjectOwner(
+        uint256 _projectId
+    ) public view returns (address) {
+        return projects[_projectId].projectOwner;
+    }
+
     // function isProjectAudited(uint256 projectId) public view returns(bool) {
     //     return projects[projectId].status == ProjectStatus.Audited;
     // }

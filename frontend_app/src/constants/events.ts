@@ -11,6 +11,12 @@ export const preparedProjectStatusChangedEvent = prepareEvent({
     "event ProjectStatusChanged(uint256 indexed projectId, uint8 indexed newStatus, address indexed auditor, uint256 creditsIssued, uint256 changeTimestamp)",
 });
 
+export const preparedCreditsMintedEvent = prepareEvent({
+  signature:
+    "event CreditsMinted(address indexed to, uint256 indexed projectId, uint256 amount)",
+});
+
+
 export interface ProjectAddedEvent {
   projectId: bigint;
   projectOwner: string;
@@ -26,6 +32,12 @@ export interface  ProjectStatusChangedEvent {
   auditor: string,
   creditsIssued: bigint,
   changeTimestamp: bigint
+}
+
+export interface CreditsMintedEvent{
+  to: string
+  projectId: bigint
+  amount: bigint
 }
 
 

@@ -2,13 +2,12 @@ import { Entity, PrimaryGeneratedColumn, Column, Unique, CreateDateColumn, Updat
 import { ProjectStatus } from "../constants"
 
 @Entity({name: "projects"})
-@Unique(["projectId", "verificationId"])
 export class Project {
 
     @PrimaryGeneratedColumn("uuid")
     id: string
 
-    @Column({nullable: false})
+    @Column({nullable: false, unique: true})
     projectId: number
     
     @Column({nullable: false})
@@ -17,7 +16,7 @@ export class Project {
     @Column({default: ""})
     auditor: string
 
-    @Column({nullable: false})
+    @Column({nullable: false, unique: true})
     verificationId: string
 
     @Column({nullable: false})

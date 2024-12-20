@@ -2,24 +2,27 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { Button } from "./ui/button";
 import { watchContractEvents } from "thirdweb";
-import { projectRegistryContract } from "@/constants/constants";
+import { carbonTokenContract, projectRegistryContract } from "@/constants/constants";
 import {
+  CreditsMintedEvent,
   ProjectAddedEvent,
   ProjectStatusChangedEvent,
   preparedAddProjectEvent,
+  preparedCreditsMintedEvent,
   preparedProjectStatusChangedEvent,
-} from "@/constants/eventPreppers";
+} from "@/constants/events";
 
 const ListenEventsButton = () => {
   const [isListening, setIsListening] = useState(false);
-  const unwatchRef = useRef<(() => void) | null>(null);
+  const unwatchRegistryRef = useRef<(() => void) | null>(null);
+  const unwatchTokenRef = useRef<(() => void) | null>(null);
 
   const startListening = () => {
     // If already listening, do nothing
     if (isListening) return;
 
     try {
-      const unwatch = watchContractEvents({
+      const unwatchProjectRegistry = watchContractEvents({
         contract: projectRegistryContract,
         events: [preparedAddProjectEvent, preparedProjectStatusChangedEvent],
         onEvents: (events) => {
@@ -37,8 +40,23 @@ const ListenEventsButton = () => {
         },
       });
 
+      const unwatchTokenContract = watchContractEvents({
+        contract: carbonTokenContract,
+        events: [preparedCreditsMintedEvent],
+        onEvents: (events) => {
+          events.forEach((event) => {
+            if (event.eventName === "CreditsMinted") {
+              const eventData = event.args as CreditsMintedEvent;
+              console.log(`CreditsMinted received: ${eventData.projectId}`);
+              handleCreditsMintedEvent(eventData);
+            }
+          })
+        }
+      })
+
       // Store the unwatch function
-      unwatchRef.current = unwatch;
+      unwatchRegistryRef.current = unwatchProjectRegistry;
+      unwatchTokenRef.current = unwatchTokenContract;
       setIsListening(true);
     } catch (error) {
       console.error("Error starting event listener:", error);
@@ -46,11 +64,15 @@ const ListenEventsButton = () => {
   };
 
   const stopListening = () => {
-    if (unwatchRef.current) {
-      unwatchRef.current();
-      unwatchRef.current = null;
-      setIsListening(false);
+    if (unwatchRegistryRef.current) {
+      unwatchRegistryRef.current();
+      unwatchRegistryRef.current = null;
     }
+    if(unwatchTokenRef.current){
+      unwatchTokenRef.current();
+      unwatchTokenRef.current = null;
+    }
+    setIsListening(false);
   };
 
   const handleProjectAddedEvent = (eventData: ProjectAddedEvent) => {
@@ -73,7 +95,7 @@ const ListenEventsButton = () => {
 
   const handleProjectStatusChangedEvent = (eventData: ProjectStatusChangedEvent) => {
     axios
-      .post(`http://localhost:5000/api/updateProject/${eventData.projectId}`, {
+      .put(`http://localhost:5000/api/updateProject/${eventData.projectId}`, {
         auditor: eventData.auditor,
         status: eventData.newStatus,
         creditsIssued: eventData.creditsIssued.toString(),
@@ -86,6 +108,19 @@ const ListenEventsButton = () => {
         console.error("Error adding project:", error);
       });
   };
+
+  const handleCreditsMintedEvent = (eventData: CreditsMintedEvent) => {
+    axios.post("http://localhost:5000/api/addTokenHolding", {
+      userAddress: eventData.to,
+      projectId: eventData.projectId.toString()
+    })
+    .then((response) => {
+      console.log("Token holding added successfully:", response.data);
+    })
+    .catch((error) => {
+      console.error("Error adding token holding:", error);
+    });
+  }
 
   return (
     <div>

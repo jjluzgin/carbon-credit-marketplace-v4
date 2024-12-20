@@ -5,6 +5,7 @@ import { Request, Response } from "express";
 import { projectRouter } from "./routes/project.routes";
 import "reflect-metadata";
 import { errorHandler } from "./middlewares/error.middleware";
+import { tokenHoldingRouter } from "./routes/tokenHolding.routes";
 
 dotenv.config();
 
@@ -22,7 +23,8 @@ app.get("/", (req, res) => {
     res.send("Welcome to the TypeORM SQLite Project!");
 });
 
-app.use("/api", projectRouter)
+app.use("/api", projectRouter);
+app.use("/api", tokenHoldingRouter);
 
 app.get("*", (req: Request, res: Response) => {
     res.status(404).json({ message: "Bad Request" });

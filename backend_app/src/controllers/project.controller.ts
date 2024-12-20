@@ -60,7 +60,7 @@ export class ProjectController {
         ipfsCID: project.ipfsCID,
         carbonRemoved: project.carbonRemoved,
       }));
-      cache.put("pendingProjects", dto, 60000);
+      cache.put("pendingProjects", dto, 10000); // 10 sek
       res.status(200).json({
         projects: dto,
       });
@@ -89,7 +89,7 @@ export class ProjectController {
         creditsIssued: project.creditsIssued,
         authenticationDate: project.authenticationDate,
       }));
-      cache.put(cacheKey, dto, 60000);
+      cache.put(cacheKey, dto, 10000); // 10s
       res.status(200).json({ projects: dto });
       return;
     } catch (error) {

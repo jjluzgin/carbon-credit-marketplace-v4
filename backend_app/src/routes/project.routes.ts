@@ -21,7 +21,7 @@ Router.post(
     ProjectController.addProject
 );
 
-Router.post(
+Router.put(
     "/updateProject/:projectId",
     // authentification,
     ProjectController.updateProject
