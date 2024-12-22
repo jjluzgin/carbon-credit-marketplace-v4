@@ -60,11 +60,11 @@ export default function MarketplaceDashboard() {
       {/* Page Content */}
       <div className="container mx-auto grid grid-rows-2 gap-4 p-4 flex-grow">
         {/* First Row */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div className="bg-white rounded-lg shadow p-4">
             <UserTokens/>
           </div>
-          <div className="col-span-2 bg-white rounded-lg shadow p-4">
+          <div className="bg-white rounded-lg shadow p-4">
             {/* ShadCN Card with Tabs */}
             <Card>
               <CardHeader>

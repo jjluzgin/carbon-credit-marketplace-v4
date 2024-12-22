@@ -13,7 +13,7 @@ const IssueCreditsCard = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleIssueCredits = async () => {
-    if (!projectId || !creditAmount) {
+    if (projectId === undefined || !creditAmount) {
       alert("All fields are required!");
       return;
     }
@@ -47,8 +47,10 @@ const IssueCreditsCard = () => {
       setCreditAmount(undefined);
     } catch (error) {
       console.error("Error submitting project:", error);
-      alert("Failed to submit project.");
+      alert("Failed to mint tokens.");
     } finally {
+      setProjectId(undefined);
+      setCreditAmount(undefined);
       setIsSubmitting(false);
     }
   };

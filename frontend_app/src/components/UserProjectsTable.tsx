@@ -1,12 +1,12 @@
 import { Table, TableHeader, TableRow, TableCell, TableBody } from "./ui/table";
 import React, { useEffect, useState } from "react";
-import { UserProjectDto } from "../../../shared/types/ProjectDto";
+import { ProjectInfoDto } from "../../../shared/types/ProjectDto";
 import axios from "axios";
 import { Skeleton } from "./ui/skeleton";
 import { useActiveAccount } from "thirdweb/react";
 
 const UserProjectsTable: React.FC = () => {
-  const [projects, setProjects] = useState<UserProjectDto[]>([]);
+  const [projects, setProjects] = useState<ProjectInfoDto[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const owner = useActiveAccount();
@@ -20,7 +20,7 @@ const UserProjectsTable: React.FC = () => {
     const fetchProjects = async () => {
       try {
         const response = await axios.get(`http://localhost:5000/api/userProjects/${owner?.address}`);
-        console.log('Full response:', response.data.projects);
+        console.log("Full response:", response.data.projects);
         setProjects(response.data.projects);
       } catch (err: any) {
         setError(err.response?.data?.message || "Failed to fetch projects.");
@@ -50,24 +50,28 @@ const UserProjectsTable: React.FC = () => {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableCell>Verification ID</TableCell>
-          <TableCell>Status</TableCell>
-          <TableCell>Data</TableCell>
-          <TableCell>Carbon Removed</TableCell>
-          <TableCell>Credits Issued</TableCell>
-          <TableCell>Authentication Date</TableCell>
+          <TableCell className="text-center">Verification ID</TableCell>
+          <TableCell className="text-center">Status</TableCell>
+          <TableCell className="text-center">Data</TableCell>
+          <TableCell className="text-center">Carbon Removed</TableCell>
+          <TableCell className="text-center">Credits Issued</TableCell>
+          <TableCell className="text-center">Authentication Date</TableCell>
         </TableRow>
       </TableHeader>
       <TableBody>
         {projects.length > 0 ? (
           projects.map((project) => (
             <TableRow key={project.verificationId}>
-              <TableCell>{project.verificationId}</TableCell>
-              <TableCell>{project.status}</TableCell>
-              <TableCell>{project.ipfsCID}</TableCell>
-              <TableCell>{project.carbonRemoved}</TableCell>
-              <TableCell>{project.creditsIssued}</TableCell>
-              <TableCell>{project.authenticationDate === 0 ? "waiting" : new Date(project.authenticationDate).toLocaleDateString()}</TableCell>
+              <TableCell className="text-center align-middle">{project.verificationId}</TableCell>
+              <TableCell className="text-center align-middle">{project.status}</TableCell>
+              <TableCell className="text-center align-middle">{project.ipfsCID}</TableCell>
+              <TableCell className="text-center align-middle">{project.carbonRemoved}</TableCell>
+              <TableCell className="text-center align-middle">{project.creditsIssued}</TableCell>
+              <TableCell className="text-center align-middle">
+                {project.authenticationDate === 0
+                  ? "waiting"
+                  : new Date(project.authenticationDate).toLocaleDateString()}
+              </TableCell>
             </TableRow>
           ))
         ) : (

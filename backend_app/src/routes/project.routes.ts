@@ -3,6 +3,19 @@ import { ProjectController } from "../controllers/project.controller";
 import { authentification } from "../middlewares/auth.middleware";
 const Router = express.Router();
 
+
+Router.get(
+  "/allProjects",  
+  //authentification,
+  ProjectController.getAllProjects
+);
+
+Router.get(
+    "/project/:id",  
+    //authentification,
+    ProjectController.getProjectInfo
+  );
+
 Router.get(
     "/pendingProjects",  
     //authentification,

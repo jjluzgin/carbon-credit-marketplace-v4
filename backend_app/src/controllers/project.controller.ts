@@ -5,10 +5,67 @@ import * as cache from "memory-cache";
 import { ProjectStatus } from "../constants";
 import {
   PendingProjectDto,
-  UserProjectDto,
+  ProjectInfoDto,
 } from "../../../shared/types/ProjectDto";
 
 export class ProjectController {
+  static async getAllProjects(req: Request, res: Response) {
+    const data = cache.get("allProjects");
+    if (data) {
+      console.log("serving from cache");
+      res.status(200).json({ projects: data });
+      return;
+    } else {
+      console.log("serving from db");
+      const projectRepository = AppDataSource.getRepository(Project);
+      const projects = await projectRepository.find();
+      const dto: ProjectInfoDto[] = projects.map((project) => ({
+        verificationId: project.verificationId,
+        ipfsCID: project.ipfsCID,
+        status: project.status,
+        carbonRemoved: project.carbonRemoved,
+        creditsIssued: project.creditsIssued,
+        authenticationDate: project.authenticationDate,
+      }));
+      cache.put("allProjects", dto, 10000);
+      res.status(200).json({ projects: dto });
+      return;
+    }
+  }
+  static async getProjectInfo(req: Request, res: Response) {
+    const { id } = req.params;
+    const cacheKey = `project_${id}`;
+    try {
+      const cachedData = cache.get(cacheKey);
+      const parsedId = parseInt(id);
+      if (cachedData) {
+        console.log("serving from cache");
+        res.status(200).json({ project: cachedData });
+        return;
+      } else {
+        console.log("serving from db");
+        const projectRepository = AppDataSource.getRepository(Project);
+        const project = await projectRepository.findOne({where:{projectId: parsedId}});
+        const dto: ProjectInfoDto = {
+          verificationId: project.verificationId,
+          ipfsCID: project.ipfsCID,
+          status: project.status,
+          carbonRemoved: project.carbonRemoved,
+          creditsIssued: project.creditsIssued,
+          authenticationDate: project.authenticationDate,
+        }
+        cache.put(cacheKey, dto, 10000);
+        res.status(200).json({ project: dto });
+        return;
+      }
+    } catch (error) {
+      console.error("Error fetching project info:", error);
+      res.status(500).json({
+        message: "An error occurred while fetching project info.",
+      });
+      return;
+    }
+  }
   static async addProject(req: Request, res: Response) {
     const {
       projectId,
@@ -81,7 +138,7 @@ export class ProjectController {
       console.log("serving from db");
       const allProjects = AppDataSource.getRepository(Project);
       const userProjects = await allProjects.find({ where: { owner: owner } });
-      const dto: UserProjectDto[] = userProjects.map((project) => ({
+      const dto: ProjectInfoDto[] = userProjects.map((project) => ({
         verificationId: project.verificationId,
         ipfsCID: project.ipfsCID,
         status: project.status,
@@ -106,29 +163,41 @@ export class ProjectController {
     const id = parseInt(projectId, 10);
     if (isNaN(id)) {
       res.status(400).json({ message: "Invalid projectId" });
-      return; 
+      return;
     }
     const { auditor, creditsIssued, status, authenticationDate } = req.body;
     const creditsIssuedInt = parseInt(creditsIssued, 10);
     const authenticationDateInt = parseInt(authenticationDate, 10);
-    if (!auditor || isNaN(status) || isNaN(authenticationDateInt) || isNaN(creditsIssuedInt)) {
-      res.status(400).json({ message: "Missing or invalid fields in request body" });
-      return; 
+    if (
+      !auditor ||
+      isNaN(status) ||
+      isNaN(authenticationDateInt) ||
+      isNaN(creditsIssuedInt)
+    ) {
+      res
+        .status(400)
+        .json({ message: "Missing or invalid fields in request body" });
+      return;
     }
-    try{
+    try {
       const projectRepo = AppDataSource.getRepository(Project);
-      const project = await projectRepo.findOne({where: { projectId: id }});
+      const project = await projectRepo.findOne({ where: { projectId: id } });
       project.auditor = auditor;
       project.status = status;
       project.creditsIssued = creditsIssuedInt;
       project.authenticationDate = authenticationDateInt;
-      const updatedProject =await projectRepo.save(project);
-  
-      res.status(200).json({ message: "Project updated successfully", project: updatedProject });
+      const updatedProject = await projectRepo.save(project);
+
+      res.status(200).json({
+        message: "Project updated successfully",
+        project: updatedProject,
+      });
       return;
-    }catch (error){
+    } catch (error) {
       console.error("Error updating project:", error);
-      res.status(500).json({ message: "An error occurred while updating the project" });
+      res
+        .status(500)
+        .json({ message: "An error occurred while updating the project" });
       return;
     }
   }

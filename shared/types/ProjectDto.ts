@@ -1,4 +1,4 @@
-export interface UserProjectDto {
+export interface ProjectInfoDto {
   verificationId: string;
   ipfsCID: string;
   status: number;
