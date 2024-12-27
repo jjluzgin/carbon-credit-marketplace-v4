@@ -48,24 +48,24 @@ export class TokenHoldingController {
         .json({ message: "Token holding added succesfully", holding });
       return;
     } catch (error) {
-      console.error("Error saving token holding:", error.message);
+      console.error("Error adding token holding:", error.message);
       res.status(500).json({
-        message: "An error occurred while saving token holding.",
+        message: "An error occurred while adding token holding.",
       });
       return;
     }
   }
 
   static async RemoveTokenHolding(req: Request, res: Response) {
-    const { userAddress, projectId } = req.body;
-    const parsedProjectId = projectId === "0" ? 0 : parseInt(projectId);
+    const { userAddress, projectId } = req.query;
+    const parsedProjectId = projectId === "0" ? 0 : parseInt(projectId as string);
     if (isNaN(parsedProjectId)) {
       res.status(400).json({ message: "Invalid projectId" });
       return;
     }
     const tokenHoldingRepo = AppDataSource.getRepository(TokenHolding);
     const holding = await tokenHoldingRepo.findOne({
-      where: { userAddress: userAddress, tokenId: parsedProjectId },
+      where: { userAddress: userAddress as string, tokenId: parsedProjectId },
     });
     if (!holding) {
       res.status(400).json({ message: "Couldn't find token holding" });

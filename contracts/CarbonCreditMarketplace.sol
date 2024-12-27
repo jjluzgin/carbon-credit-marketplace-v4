@@ -87,7 +87,7 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
 
         unchecked{
             uint256 totalPrice = _amount * _pricePerCredit;
-
+            uint256 expiration = block.timestamp + ORDER_EXPIRATION_PERIOD;
             // Create trade order
             tradeOrders[orderId] = TradeOrder({
                 seller: msg.sender,
@@ -95,7 +95,7 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
                 creditsAmount: _amount,
                 orderPrice: totalPrice,
                 isActive: true,
-                expirationTimestamp: block.timestamp + ORDER_EXPIRATION_PERIOD
+                expirationTimestamp: expiration
             });
 
             emit OrderCreated(
@@ -103,21 +103,22 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
                 msg.sender, 
                 _projectId, 
                 _amount, 
-                totalPrice
+                totalPrice,
+                expiration
             );
         }
     }
 
     // Execute a trade order
     function executeTrade(uint256 _orderId) external payable whenNotPaused nonReentrant {        
-        TradeOrder memory order = tradeOrders[_orderId];   
+        TradeOrder memory order = tradeOrders[_orderId];
         // Initial checks
         if(!order.isActive) revert InactiveOrder(_orderId); // Revert if order is inactive
         if(order.isActive && order.expirationTimestamp < block.timestamp){  // Revert and change order statuses if order is active but expired
             closeOrder(_orderId);
             emit ExpiredOrderClosed(_orderId, order.seller, order.projectId, order.creditsAmount, order.orderPrice);
             revert ExpiredOrder(_orderId); // Would this also revert the changes made by closeOrder function?
-        } 
+        }
         if(msg.value < order.orderPrice) revert InsufficientPayment();  // Revert if sender did not include enough value
 
         // Modify order state
@@ -130,7 +131,7 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
             uint256 sellerProceeds = order.orderPrice - platformFee;
 
             // Transfer credits from contract to buyer
-            carbonToken.safeTransferFrom(address(this), msg.sender, _orderId, order.creditsAmount, "");
+            carbonToken.safeTransferFrom(address(this), msg.sender, order.projectId, order.creditsAmount, "");
 
             // Update account balances of seller and current address
             accountBalances[order.seller] += sellerProceeds;
@@ -143,7 +144,7 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
                 if (!refundSent) revert RefundFailed();
             }
             // emit event
-            emit OrderFilled(msg.sender, order.seller, _orderId, order.creditsAmount, order.orderPrice);
+            emit OrderFilled(_orderId, order.projectId, msg.sender, order.seller, order.creditsAmount, order.orderPrice);
         }
     }
 
@@ -241,12 +242,14 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
         address indexed seller, 
         uint256 indexed projectId, 
         uint256 creditsAmount,
-        uint256 orderPrice
+        uint256 orderPrice,
+        uint256 expirationDate
     );
     event OrderFilled(
+        uint256 indexed orderId, 
+        uint256 projectId, 
         address indexed buyer, 
         address indexed seller,
-        uint256 indexed orderId, 
         uint256 amountFilled, 
         uint256 totalPrice
     );

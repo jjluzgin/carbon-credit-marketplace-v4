@@ -3,12 +3,12 @@ import { Entity, PrimaryGeneratedColumn, Column, Unique } from 'typeorm';
 @Entity({name: "tokenHolding"})
 @Unique(['userAddress', 'tokenId'])
 export class TokenHolding {
-    @PrimaryGeneratedColumn()
+    @PrimaryGeneratedColumn("uuid")
     id: number;
 
-    @Column()
+    @Column({nullable: false})
     userAddress: string;
 
-    @Column()
+    @Column({nullable: false})
     tokenId: number;
 }

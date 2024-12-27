@@ -13,7 +13,7 @@ export class Project {
     @Column({nullable: false})
     owner: string
 
-    @Column({default: ""})
+    @Column({nullable: false, default: ""})
     auditor: string
 
     @Column({nullable: false, unique: true})
@@ -22,7 +22,7 @@ export class Project {
     @Column({nullable: false})
     ipfsCID: string
 
-    @Column()
+    @Column({nullable: false})
     carbonRemoved: number
 
     @Column({default: 0})

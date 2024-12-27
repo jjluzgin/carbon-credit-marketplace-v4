@@ -1,4 +1,3 @@
-
 import { prepareEvent } from "thirdweb";
 
 export const preparedAddProjectEvent = prepareEvent({
@@ -12,10 +11,28 @@ export const preparedProjectStatusChangedEvent = prepareEvent({
 });
 
 export const preparedCreditsMintedEvent = prepareEvent({
-  signature:
-    "event CreditsMinted(address indexed to, uint256 indexed projectId, uint256 amount)",
+  signature: "event CreditsMinted(address indexed to, uint256 indexed projectId, uint256 amount)",
 });
 
+export const preparedCreditRetiredEvent = prepareEvent({
+  signature:
+    "event CreditRetired(address indexed retiree, uint256 indexed projectId, uint256 amount, uint256 timestamp, string emissionDescription)",
+});
+
+export const preparedOrderCreatedEvent = prepareEvent({
+  signature:
+    "event OrderCreated(uint256 indexed orderId, address indexed seller, uint256 indexed projectId, uint256 creditsAmount, uint256 orderPrice, uint256 expirationDate)",
+});
+
+export const preparedOrderClosedEvent = prepareEvent({
+  signature:
+    "event OrderClosed(uint256 indexed orderId, address indexed closedBy, uint256 indexed projectId, uint256 creditsAmount, uint256 orderPrice)",
+});
+
+export const preparedOrderFilledEvent = prepareEvent({
+  signature:
+    "event OrderFilled(address indexed buyer, address indexed seller, uint256 indexed orderId, uint256 amountFilled, uint256 totalPrice)",
+});
 
 export interface ProjectAddedEvent {
   projectId: bigint;
@@ -26,30 +43,50 @@ export interface ProjectAddedEvent {
   ipfsCID: string;
 }
 
-export interface  ProjectStatusChangedEvent {
-  projectId: bigint,
-  newStatus: number,
-  auditor: string,
-  creditsIssued: bigint,
-  changeTimestamp: bigint
+export interface ProjectStatusChangedEvent {
+  projectId: bigint;
+  newStatus: number;
+  auditor: string;
+  creditsIssued: bigint;
+  changeTimestamp: bigint;
 }
 
-export interface CreditsMintedEvent{
-  to: string
-  projectId: bigint
-  amount: bigint
+export interface CreditsMintedEvent {
+  to: string;
+  projectId: bigint;
+  amount: bigint;
 }
 
+export interface OrderCreatedEvent {
+  orderId: bigint;
+  seller: string;
+  projectId: bigint;
+  creditsAmount: bigint;
+  orderPrice: bigint;
+  expirationDate: bigint;
+}
 
-// const ProjectAddEventListener = ({contract, eventName}) => {
-//    // State to track processed events to prevent duplicate updates
-//    const [processedEvents, setProcessedEvents] = useState(new Set());
+export interface OrderClosedEvent {
+  orderId: bigint;
+  closedBy: string;
+  projectId: bigint;
+  creditsAmount: bigint;
+  orderPrice: bigint;
+}
 
-//    // Listen to contract events
-//    const { data: events } = useContractEvents({
-//      contract,
-//      eventName, // Specify the specific event you want to listen to
-//      subscribe: true
-//    });
-// }
+export interface CreditRetiredEvent {
+  retiree: string;
+  projectId: bigint;
+  amount: bigint;
+  timestamp: bigint;
+  emissionDescription: string;
+}
 
+export interface OrderFilledEvent {
+  orderId: bigint, 
+  projectId: bigint, 
+  buyer: string, 
+  seller: string,
+  amountFilled: bigint, 
+  totalPrice: bigint
+}

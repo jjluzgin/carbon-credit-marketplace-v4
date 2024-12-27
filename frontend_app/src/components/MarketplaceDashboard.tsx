@@ -1,19 +1,18 @@
 import { useActiveAccount } from "thirdweb/react";
 import { NavBar } from "./NavBar";
-import { Card,CardHeader,CardTitle,CardContent,CardFooter } from "./ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "./ui/card";
 import { Tabs, TabsList, TabsContent, TabsTrigger } from "./ui/tabs";
-import ProjectSubmissionCard from "./ProjectSubmissionCard";
+import SubmitProjectCard from "./SubmitProjectCard";
 import { useCallback, useEffect, useState } from "react";
 import { Address, readContract } from "thirdweb";
-import {
-  projectRegistryContract,
-  auditorRole,
-  projectOwnerRole,
-} from "@/constants/constants";
+import { projectRegistryContract, auditorRole, projectOwnerRole } from "@/constants/constants";
 import UserProjectsTable from "./UserProjectsTable";
 import PendingProjectsTable from "./PendingProjectsTable";
-import IssueCreditsCard from "./IssueCreditsCard";
+import IssueCreditsComponent from "./IssueCreditsComponent";
 import UserTokens from "./UserTokens";
+import SellOrderForm from "./SellOrderForm";
+import UserSellOrders from "./UserSellOrders";
+import SellOrdersComponent from "./SellOrdersComponent";
 
 export default function MarketplaceDashboard() {
   const account = useActiveAccount();
@@ -27,8 +26,7 @@ export default function MarketplaceDashboard() {
       try {
         const data = await readContract({
           contract: projectRegistryContract,
-          method:
-            "function hasRole(bytes32 role, address account) view returns (bool)",
+          method: "function hasRole(bytes32 role, address account) view returns (bool)",
           params: [roleHash, account.address],
         });
         setState(data);
@@ -42,10 +40,7 @@ export default function MarketplaceDashboard() {
 
   useEffect(() => {
     const checkRoles = async () => {
-      await Promise.all([
-        checkRole(auditorRole, setIsAuditor),
-        checkRole(projectOwnerRole, setIsProjectOwner),
-      ]);
+      await Promise.all([checkRole(auditorRole, setIsAuditor), checkRole(projectOwnerRole, setIsProjectOwner)]);
     };
     if (account) checkRoles();
   }, [account, checkRole]);
@@ -60,11 +55,11 @@ export default function MarketplaceDashboard() {
       {/* Page Content */}
       <div className="container mx-auto grid grid-rows-2 gap-4 p-4 flex-grow">
         {/* First Row */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div className="bg-white rounded-lg shadow p-4">
-            <UserTokens/>
+            <UserTokens />
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
+          <div className="col-span-2 bg-white rounded-lg shadow p-4">
             {/* ShadCN Card with Tabs */}
             <Card>
               <CardHeader>
@@ -82,16 +77,16 @@ export default function MarketplaceDashboard() {
 
                   {/* Tab Contents */}
                   <TabsContent value="submit">
-                    <ProjectSubmissionCard/>
+                    <SubmitProjectCard />
                   </TabsContent>
                   <TabsContent value="my-projects">
-                    <UserProjectsTable/>
+                    <UserProjectsTable />
                   </TabsContent>
                   <TabsContent value="to-review">
-                    <PendingProjectsTable/>
+                    <PendingProjectsTable />
                   </TabsContent>
                   <TabsContent value="mint">
-                    <IssueCreditsCard/>
+                    <IssueCreditsComponent />
                   </TabsContent>
                 </Tabs>
               </CardContent>
@@ -101,8 +96,13 @@ export default function MarketplaceDashboard() {
 
         {/* Second Row */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 bg-white rounded-lg shadow p-4"></div>
-          <div className="bg-white rounded-lg shadow p-4"></div>
+          <div className="col-span-2 bg-white rounded-lg shadow p-4">
+            <SellOrdersComponent />
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <SellOrderForm/>
+            <UserSellOrders />
+          </div>
         </div>
       </div>
     </div>

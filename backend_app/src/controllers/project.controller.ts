@@ -117,7 +117,7 @@ export class ProjectController {
         ipfsCID: project.ipfsCID,
         carbonRemoved: project.carbonRemoved,
       }));
-      cache.put("pendingProjects", dto, 10000); // 10 sek
+      cache.put("pendingProjects", dto, 5000); // 5 sek
       res.status(200).json({
         projects: dto,
       });

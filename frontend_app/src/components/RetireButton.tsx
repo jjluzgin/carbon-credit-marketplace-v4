@@ -18,42 +18,43 @@ import { carbonTokenContract } from "@/constants/constants";
 interface RetireButtonProps {
   tokenId: number;
   account: Account | undefined;
+  initialTokenBalance: number;
 }
 
-const RetireButton: React.FC<RetireButtonProps> = ({ tokenId, account }) => {
+const RetireButton: React.FC<RetireButtonProps> = ({ tokenId, account, initialTokenBalance }) => {
   const [amount, setAmount] = useState<number>(0);
   const [reason, setReason] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleRetire = async() => {
+  const handleRetire = async () => {
     if (!account) {
       alert("Please connect your wallet first.");
       return;
     }
-    if(amount === 0 || !reason){
+    if (amount === 0 || !reason) {
       alert("All fields are required!");
       return;
     }
 
-    try{
-      const transaction = await prepareContractCall({
+    try {
+      const transaction = prepareContractCall({
         contract: carbonTokenContract,
-        method:
-          "function retireCredits(uint256 _projectId, uint256 _amount, string _description)",
+        method: "function retireCredits(uint256 _projectId, uint256 _amount, string _description)",
         params: [BigInt(tokenId), BigInt(amount), reason],
       });
       const { transactionHash } = await sendTransaction({
         transaction,
         account: account,
       });
-      console.log("Retirement successful:", transactionHash)
-    }catch (error) {
+
+      console.log("Retirement successful:", transactionHash);
+    } catch (error) {
       console.error("Error retirint credits:", error);
       alert("Failed to retire credits.");
     } finally {
       setIsSubmitting(false);
     }
-  }
+  };
 
   const handleSubmit = () => {
     setIsSubmitting(true);

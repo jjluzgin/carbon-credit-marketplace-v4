@@ -6,7 +6,7 @@ import { useActiveAccount } from "thirdweb/react";
 import { getAddress, isAddress, prepareContractCall, readContract, sendTransaction } from "thirdweb";
 import { carbonTokenContract, projectRegistryContract } from "@/constants/constants";
 
-const IssueCreditsCard = () => {
+const IssueCreditsComponent = () => {
   const account = useActiveAccount();
   const [projectId, setProjectId] = useState<number | undefined>();
   const [creditAmount, setCreditAmount] = useState<number | undefined>();
@@ -89,4 +89,4 @@ const IssueCreditsCard = () => {
   );
 };
 
-export default IssueCreditsCard;
+export default IssueCreditsComponent;

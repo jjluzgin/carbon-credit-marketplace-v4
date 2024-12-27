@@ -6,6 +6,8 @@ import { Skeleton } from "./ui/skeleton";
 import { useActiveAccount } from "thirdweb/react";
 import { projectRegistryContract } from "@/constants/constants";
 import { prepareContractCall, sendTransaction } from "thirdweb";
+import { Button } from "./ui/button";
+import { FileText } from "lucide-react";
 
 const PendingProjectsTable: React.FC = () => {
   const [pendingProjects, setPendingProjects] = useState<PendingProjectDto[]>([]);
@@ -30,7 +32,7 @@ const PendingProjectsTable: React.FC = () => {
         method,
         params: [BigInt(projectId)],
       });
-			const { transactionHash } = await sendTransaction({
+      const { transactionHash } = await sendTransaction({
         transaction,
         account: account,
       });
@@ -38,23 +40,24 @@ const PendingProjectsTable: React.FC = () => {
     } catch (error) {
       console.error(`Error during ${action} project:`, error);
     } finally {
+      fetchProjects();
       setProcessing((prev) => ({ ...prev, [projectId]: false }));
     }
   };
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const response = await axios.get(`http://localhost:5000/api/pendingProjects`);
-        console.log("Full response:", response.data.projects);
-        setPendingProjects(response.data.projects);
-      } catch (err: any) {
-        setError(err.response?.data?.message || "Failed to fetch projects.");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchProjects = async () => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/pendingProjects`);
+      console.log("Full response:", response.data.projects);
+      setPendingProjects(response.data.projects);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to fetch projects.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchProjects();
   }, [account]);
 
@@ -87,7 +90,16 @@ const PendingProjectsTable: React.FC = () => {
           pendingProjects.map((project) => (
             <TableRow key={project.verificationId}>
               <TableCell>{project.verificationId}</TableCell>
-              <TableCell>{project.ipfsCID}</TableCell>
+              <TableCell className="text-center align-middle">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => window.open(`https://ipfs.io/ipfs/${project.ipfsCID}/`, "_blank")}>
+                  <FileText className="h-4 w-4" />
+                  View Data
+                </Button>
+              </TableCell>
               <TableCell>{project.carbonRemoved ?? 0}</TableCell>
               <TableCell>
                 <button

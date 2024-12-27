@@ -108,9 +108,8 @@ const ProjectDetailsButton: React.FC<RetireButtonProps> = ({ tokenId, account })
   const getStatusBadge = (status: number) => {
     const statusMap = {
       0: { label: "Pending", className: "bg-yellow-500" },
-      1: { label: "Active", className: "bg-green-500" },
-      2: { label: "Rejected", className: "bg-red-500" },
-      3: { label: "Completed", className: "bg-blue-500" }
+      1: { label: "Audited", className: "bg-green-500" },
+      2: { label: "Rejected", className: "bg-red-500" }
     };
     const statusInfo = statusMap[status as keyof typeof statusMap] || { label: "Unknown", className: "bg-gray-500" };
     return <Badge className={`${statusInfo.className} text-white`}>{statusInfo.label}</Badge>;

@@ -126,7 +126,7 @@ const UserTokens: React.FC = () => {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <ProjectDetailsButton tokenId={token.tokenId} account={account} />
-                        <RetireButton tokenId={token.tokenId} account={account} />
+                        <RetireButton tokenId={token.tokenId} account={account} initialTokenBalance={token.balance} />
                       </div>
                     </TableCell>
                   </TableRow>

@@ -6,6 +6,7 @@ import { projectRouter } from "./routes/project.routes";
 import "reflect-metadata";
 import { errorHandler } from "./middlewares/error.middleware";
 import { tokenHoldingRouter } from "./routes/tokenHolding.routes";
+import { sellOrderRouter } from "./routes/sellOrder.router";
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.get("/", (req, res) => {
 
 app.use("/api", projectRouter);
 app.use("/api", tokenHoldingRouter);
+app.use("/api", sellOrderRouter);
 
 app.get("*", (req: Request, res: Response) => {
     res.status(404).json({ message: "Bad Request" });
