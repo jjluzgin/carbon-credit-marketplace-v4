@@ -48,38 +48,43 @@ contract CarbonCreditToken is ERC1155, ERC1155Burnable, AccessControl, ERC1155Su
     {
         if(!projectRegistry.projectExists(_projectId))
             revert ProjectNotFound(_projectId);
-        uint256 allowedAmount = projectRegistry.getProjectIssuedCredits(_projectId) - totalSupply(_projectId);
-        if(allowedAmount < _amount) // Effectively checks if project is audited or not because non edited project cannot have a supply
+        uint256 allowedAmount = 
+            projectRegistry.getProjectIssuedCredits(_projectId) - totalSupply(_projectId);
+        // Check if project has the required supply
+        if(allowedAmount < _amount)
             revert MintExceedsIssuedCredits(_projectId, allowedAmount);
-
         _mint(_to, _projectId, _amount, _data);
         emit CreditsMinted(_to, _projectId, _amount);
     }
 
-    // Mint Batch currently not supported
+    // Batch minting not supported due to vulnerability in code 
 
-    function mintCreditsBatch(
-        address _to, 
-        uint256[] memory _projectIds, 
-        uint256[] memory _amounts, 
-        bytes memory _data
-    )
-        public
-        onlyRole(TOKEN_MANAGER_ROLE)
-    {
-        if(_projectIds.length != _amounts.length)
-            revert MismatchingArrayLengths();
-        for(uint256 i = 0; i < _projectIds.length; i++){
-            uint256 id = _projectIds[i];
-            if(!projectRegistry.projectExists(id))
-                revert ProjectNotFound(id);
-            uint256 allowedAmount = projectRegistry.getProjectIssuedCredits(id) - totalSupply(id);
-            if(allowedAmount < _amounts[i])
-                revert MintExceedsIssuedCredits(id, allowedAmount);
-        }
-        _mintBatch(_to, _projectIds, _amounts, _data);
-        emit CreditsMintedBatch(_to, _projectIds, _amounts);
-    }
+    // function mintCreditsBatch(
+    //     address _to, 
+    //     uint256[] memory _projectIds, 
+    //     uint256[] memory _amounts, 
+    //     bytes memory _data
+    // )
+    //     public
+    //     onlyRole(TOKEN_MANAGER_ROLE)
+    // {
+    //     if(_projectIds.length != _amounts.length)
+    //         revert MismatchingArrayLengths();
+    //     // Track used amounts per project
+    //     mapping(uint256 => uint256) usedAmounts;
+    //     for(uint256 i = 0; i < _projectIds.length; i++){
+    //         uint256 id = _projectIds[i];
+    //         if(!projectRegistry.projectExists(id))
+    //             revert ProjectNotFound(id);
+    //         uint256 allowedAmount = 
+    //             projectRegistry.getProjectIssuedCredits(id) - totalSupply(id);
+    //         usedAmounts[id] += _amounts[i];
+    //         if(allowedAmount < _amounts[i])
+    //             revert MintExceedsIssuedCredits(id, allowedAmount);
+    //     }
+    //     _mintBatch(_to, _projectIds, _amounts, _data);
+    //     emit CreditsMintedBatch(_to, _projectIds, _amounts);
+    // }
 
     function retireCredits(
         uint256 _projectId, 

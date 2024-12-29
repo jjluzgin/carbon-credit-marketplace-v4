@@ -140,8 +140,7 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
             // Refund excess
             uint256 refundAmount = msg.value - order.orderPrice;
             if (refundAmount > 0) {
-                (bool refundSent,) = payable(msg.sender).call{value: refundAmount}("");
-                if (!refundSent) revert RefundFailed();
+                accountBalances[msg.sender] += refundAmount;
             }
             // emit event
             emit OrderFilled(_orderId, order.projectId, msg.sender, order.seller, order.creditsAmount, order.orderPrice);

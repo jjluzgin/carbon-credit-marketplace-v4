@@ -25,8 +25,12 @@ describe("CarbonProjectRegistry", function () {
   const projectAuditedError = "ProjectAlreadyAudited";
   const projectExistsError = "ProjectAlreadyExists";
   const projectNotFoundError = "ProjectNotFound";
-  const unauthorizedAccountError = "UnauthorizedAccount";
 
+  enum ProjectStatus{
+    Pending = 0,
+    Audited = 1,
+    Rejected = 2
+  }
 
   async function deployCarbonProjectRegistry() {
     [admin, projectOwner, auditor, otherAccount] = await ethers.getSigners();
@@ -48,16 +52,14 @@ describe("CarbonProjectRegistry", function () {
 
   beforeEach(async function () {
     await deployCarbonProjectRegistry();
-    addValidProject(projectRegistry, projectOwner);
+    await addValidProject(projectRegistry, projectOwner);
   });
   
   describe("Adding a project", function(){
-    it("should add a project successfully", async function () {
-      const id = projectId+1;
-      
+    it("should add a project successfully", async function () {      
       const tx = await projectRegistry.connect(projectOwner).addProject(carbonRemoved, ipfsCID, secondVerificationId);
-
-      await expect(tx).to.emit(projectRegistry, "ProjectAdded").withArgs(projectOwner.address, id, carbonRemoved, ipfsCID);
+      const newProjectId = projectId + 1;
+      await expect(tx).to.emit(projectRegistry, "ProjectAdded").withArgs(newProjectId, projectOwner.address, secondVerificationId, ProjectStatus.Pending, carbonRemoved, ipfsCID);
       
       // Fetch the project details
       const project = await projectRegistry.projects(projectId);
@@ -65,7 +67,7 @@ describe("CarbonProjectRegistry", function () {
       // Assert the project details
       expect(project.ipfsCID).to.equal(ipfsCID);
       expect(project.projectOwner).to.equal(projectOwner.address);
-      expect(project.status).to.equal(0); // ProjectStatus.Pending
+      expect(project.status).to.equal(ProjectStatus.Pending); // ProjectStatus.Pending
       expect(project.authenticationDate).to.equal(0); // No verification yet
       expect(project.creditsIssued).to.equal(0);
     });
@@ -99,7 +101,7 @@ describe("CarbonProjectRegistry", function () {
       const correctedCreditAmount = BigInt(carbonRemoved) * BigInt(mintPercentage) / BigInt(100);
       
       // Assert the updated status and verification date
-      expect(project.status).to.equal(1); // ProjectStatus.Verified
+      expect(project.status).to.equal(ProjectStatus.Audited);
       expect(project.authenticationDate).to.be.greaterThan(0);
       expect(project.creditsIssued).to.equal(correctedCreditAmount);
     });
@@ -120,7 +122,7 @@ describe("CarbonProjectRegistry", function () {
       const project = await projectRegistry.projects(projectId);
       
       // Assert the updated status and verification date
-      expect(project.status).to.equal(2); // ProjectStatus.Rejected
+      expect(project.status).to.equal(ProjectStatus.Rejected);
       expect(project.authenticationDate).to.be.equal(0);
       expect(project.creditsIssued).to.equal(0);
     });
@@ -160,7 +162,7 @@ describe("CarbonProjectRegistry", function () {
   describe("Updating a project", function(){
     it("should allow project owner to update info of a pending project", async function () {     
       // Update project info
-      await projectRegistry.connect(projectOwner).updateProjectMetaData(
+      await projectRegistry.connect(projectOwner).updateProjectMetadata(
         projectId, 
         updatedIpfsCID
       );
@@ -170,7 +172,7 @@ describe("CarbonProjectRegistry", function () {
       
       // Assert the updated details
       expect(project.ipfsCID).to.equal(updatedIpfsCID);
-      expect(project.status).to.equal(0); // ProjectStatus.Pending
+      expect(project.status).to.equal(ProjectStatus.Pending);
     });
 
     it("should allow project owner to update info of a rejected project", async function () {
@@ -180,7 +182,7 @@ describe("CarbonProjectRegistry", function () {
       );
   
       // Then update project info
-      await projectRegistry.connect(projectOwner).updateProjectMetaData(
+      await projectRegistry.connect(projectOwner).updateProjectMetadata(
         projectId, 
         updatedIpfsCID
       );
@@ -190,13 +192,13 @@ describe("CarbonProjectRegistry", function () {
       
       // Assert the updated details
       expect(project.ipfsCID).to.equal(updatedIpfsCID);
-      expect(project.status).to.equal(0); // ProjectStatus.Pending
+      expect(project.status).to.equal(ProjectStatus.Pending);
     });
 
     it("shouldn't allow non project owner to update project", async function () {
       await projectRegistry.grantRole(await projectRegistry.PROJECT_OWNER_ROLE(), otherAccount.address);
       await expect( 
-        projectRegistry.connect(otherAccount).updateProjectMetaData(
+        projectRegistry.connect(otherAccount).updateProjectMetadata(
           projectId, 
           updatedIpfsCID
         )
@@ -207,11 +209,51 @@ describe("CarbonProjectRegistry", function () {
       await projectRegistry.connect(auditor).acceptProject(projectId);
 
       await expect( 
-        projectRegistry.connect(projectOwner).updateProjectMetaData(
+        projectRegistry.connect(projectOwner).updateProjectMetadata(
           projectId, 
           updatedIpfsCID
         )
       ).to.revertedWithCustomError(projectRegistry, projectAuditedError);
     });
   })
+  describe("View functions", function () { 
+    it("should return correct project owner", async function () {
+      const owner = await projectRegistry.getProjectOwner(projectId);
+      expect(owner).to.equal(projectOwner.address);
+    });
+  
+    it("should return zero credits for non-audited project", async function () {
+      const credits = await projectRegistry.getProjectIssuedCredits(projectId);
+      expect(credits).to.equal(0);
+    });
+  
+    it("should return correct credits after project is audited", async function () {
+      await projectRegistry.connect(auditor).acceptProject(projectId);
+      const credits = await projectRegistry.getProjectIssuedCredits(projectId);
+      const expectedCredits = BigInt(carbonRemoved) * BigInt(initMintPct) / BigInt(100);
+      expect(credits).to.equal(expectedCredits);
+    });
+  
+    it("should correctly identify project audit status", async function () {
+      // Check initial status (not audited)
+      let isAudited = await projectRegistry.isProjectAudited(projectId);
+      expect(isAudited).to.be.false;
+  
+      // Audit project and check again
+      await projectRegistry.connect(auditor).acceptProject(projectId);
+      isAudited = await projectRegistry.isProjectAudited(projectId);
+      expect(isAudited).to.be.true;
+    });
+  
+    it("should correctly check if project exists", async function () {
+      // Check existing project
+      let exists = await projectRegistry.projectExists(projectId);
+      expect(exists).to.be.true;
+  
+      // Check non-existent project
+      const nonExistentId = 999;
+      exists = await projectRegistry.projectExists(nonExistentId);
+      expect(exists).to.be.false;
+    });
+  });
 });

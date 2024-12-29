@@ -11,7 +11,6 @@ contract CarbonProjectRegistry is AccessControl {
 
     struct ProjectMetadata {
         ProjectStatus status;
-        // Verifier verifierBody; Move inside ipfs
         bytes32 uniqueVerificationId;
         address projectOwner;
         address auditor;
@@ -19,7 +18,6 @@ contract CarbonProjectRegistry is AccessControl {
         uint256 carbonRemoved;
         uint256 creditsIssued;
         string ipfsCID;
-        // string projectName; Move inside ipfs
     }
 
     enum ProjectStatus {
@@ -49,11 +47,12 @@ contract CarbonProjectRegistry is AccessControl {
         string calldata _ipfsCID,
         string calldata _verificationId
     ) external onlyRole(PROJECT_OWNER_ROLE) {
-        bytes32 projectHash = keccak256(bytes(_verificationId)); // could be done offchain maybe?
-        if (registeredProjects[projectHash])
-            revert ProjectAlreadyExists(_verificationId);
-        if (_carbonReduction == 0)
-            revert InvalidReductionAmount(_carbonReduction);
+        // Generate hash for verification ID
+        bytes32 projectHash = keccak256(bytes(_verificationId));
+        // Checks
+        if (registeredProjects[projectHash]) revert ProjectAlreadyExists(_verificationId);
+        if (_carbonReduction == 0) revert InvalidReductionAmount(_carbonReduction);
+        // Create new project
         projects[projectCount] = ProjectMetadata({
             status: ProjectStatus.Pending,
             ipfsCID: _ipfsCID,
@@ -64,7 +63,9 @@ contract CarbonProjectRegistry is AccessControl {
             uniqueVerificationId: projectHash,
             creditsIssued: 0
         });
+        // Set project existance to true
         registeredProjects[projectHash] = true;
+        // Emit event about a new project
         emit ProjectAdded(
             projectCount,
             msg.sender,
@@ -76,30 +77,34 @@ contract CarbonProjectRegistry is AccessControl {
         projectCount++;
     }
 
-    function updateProjectMetaData(
+    function updateProjectMetadata(
         uint256 _projectId,
         string calldata _newIpfsCID
     ) external {
+        // Check roles, we allow Auditor and Project Owner roles
         if (
             !hasRole(PROJECT_OWNER_ROLE, msg.sender) &&
             !hasRole(AUDITOR_ROLE, msg.sender)
         ) {
-            bytes32[2] memory requiredRoles = [
-                PROJECT_OWNER_ROLE,
-                AUDITOR_ROLE
-            ];
+            bytes32[2] memory requiredRoles = [PROJECT_OWNER_ROLE,AUDITOR_ROLE];
             revert UnauthorizedAccount(address(msg.sender), requiredRoles);
         }
+        // Check if project exists
         if (!projectExists(_projectId)) revert ProjectNotFound();
-        // Additional checks for Project Owners
+        // Auditor can update already audited projects
         if (!hasRole(AUDITOR_ROLE, msg.sender)) {
+            // Check if caller is actually project owner
             if (projects[_projectId].projectOwner != msg.sender)
                 revert NotProjectOwner();
+            // Project owner can only update Pending or Rejected projects
             if (projects[_projectId].status == ProjectStatus.Audited)
                 revert ProjectAlreadyAudited();
+        }else{
+            // update auditor
+            projects[_projectId].auditor = address(msg.sender);
         }
+        // Update project
         projects[_projectId].ipfsCID = _newIpfsCID;
-        projects[_projectId].auditor = address(0);
         projects[_projectId].status = ProjectStatus.Pending;
     }
 
@@ -110,14 +115,19 @@ contract CarbonProjectRegistry is AccessControl {
     }
 
     function acceptProject(uint256 _projectId) public onlyRole(AUDITOR_ROLE) {
+        // Checks
         if (!projectExists(_projectId)) revert ProjectNotFound();
+        if (projects[_projectId].status != ProjectStatus.Pending) revert ProjectNotInPendingState();
+        // Calculate credits to issue
         uint256 _creditsIssued = getRiskCorrectedCreditAmount(
             projects[_projectId].carbonRemoved
         );
+        // Update project
         projects[_projectId].status = ProjectStatus.Audited;
         projects[_projectId].authenticationDate = block.timestamp;
         projects[_projectId].auditor = msg.sender;
         projects[_projectId].creditsIssued = _creditsIssued;
+        // Emit event about status change
         emit ProjectStatusChanged(
             _projectId,
             ProjectStatus.Audited,
@@ -128,12 +138,13 @@ contract CarbonProjectRegistry is AccessControl {
     }
 
     function rejectProject(uint256 _projectId) public onlyRole(AUDITOR_ROLE) {
+        // Checks
         if (!projectExists(_projectId)) revert ProjectNotFound();
-        if (projects[_projectId].status == ProjectStatus.Audited)
-            revert ProjectAlreadyAudited();
+        if (projects[_projectId].status == ProjectStatus.Audited) revert ProjectAlreadyAudited();
+        // Update project
         projects[_projectId].status = ProjectStatus.Rejected;
         projects[_projectId].auditor = msg.sender;
-
+        // Emit event about status change
         emit ProjectStatusChanged(
             _projectId,
             ProjectStatus.Rejected,
@@ -150,26 +161,23 @@ contract CarbonProjectRegistry is AccessControl {
         return registeredProjects[_uniqueVerificationId];
     }
 
-    function getProjectIssuedCredits(
-        uint256 _projectId
-    ) public view returns (uint256) {
+    function getProjectIssuedCredits(uint256 _projectId) public view returns (uint256) {
         return projects[_projectId].creditsIssued;
     }
 
-    function getProjectOwner(
-        uint256 _projectId
-    ) public view returns (address) {
+    function getProjectOwner(uint256 _projectId) public view returns (address) {
         return projects[_projectId].projectOwner;
     }
 
-    // function isProjectAudited(uint256 projectId) public view returns(bool) {
-    //     return projects[projectId].status == ProjectStatus.Audited;
-    // }
+    function isProjectAudited(uint256 projectId) public view returns(bool) {
+        return projects[projectId].status == ProjectStatus.Audited;
+    }
 
     error InvalidReductionAmount(uint256 carbonReduced);
     error NotProjectOwner();
     error ProjectAlreadyExists(string verificationId);
     error ProjectAlreadyAudited();
+    error ProjectNotInPendingState();
     error ProjectNotFound();
     error UnauthorizedAccount(address account, bytes32[2] neededRoles);
 

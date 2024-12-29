@@ -138,56 +138,6 @@ describe("CarbonCreditToken", function() {
     });
   });
 
-  describe("Batch Minting", function() {
-    it("Should successfully mint tokens for multiple projects", async function () {
-      // Add another project
-      await projectRegistry.connect(projectOwner).addProject(
-        carbonRemoved,
-        "AnotherIPFSCID",
-        "0001/2024"
-      );
-      await projectRegistry.connect(admin).acceptProject(1);
-
-      const ids: [number,number] = [0,1];
-      
-      const creditsProject0 = await projectRegistry.getProjectIssuedCredits(ids[0]);
-      const creditsProject1 = await projectRegistry.getProjectIssuedCredits(ids[1]);
-      
-      const amounts = [creditsProject0, creditsProject1]; 
-      
-      // Mint credits from both projects
-      const tx = await carbonToken.connect(tokenManager).mintCreditsBatch(
-        projectOwner.address, 
-        ids, 
-        amounts, 
-        "0x"
-      );
-
-      // check event emission
-      await expect(tx).to.emit(carbonToken, creditsMintedbatchEvent);
-
-      const balances = await carbonToken.balanceOfBatch(
-        [projectOwner.address, projectOwner.address], 
-        ids
-      );
-
-      // Check balances after emission
-      expect(balances[0]).to.equal(creditsProject0);
-      expect(balances[1]).to.equal(creditsProject1);
-    });
-
-    it("Should revert batch minting with mismatched array lengths", async function () {
-      await expect(
-        carbonToken.connect(tokenManager).mintCreditsBatch(
-          projectOwner.address, 
-          [0, 1], 
-          [100], 
-          "0x"
-        )
-      ).to.be.revertedWithCustomError(carbonToken, "MismatchingArrayLengths");
-    });
-  });
-
   describe("Retiring Credits", function() {
     it("Should successfully retire credits", async function () {
       const creditsIssued = await projectRegistry.getProjectIssuedCredits(projectId);
@@ -234,6 +184,117 @@ describe("CarbonCreditToken", function() {
           "Test retirement"
         )
       ).to.be.revertedWithCustomError(carbonToken, "InsufficientBalance");
+    });
+  });
+  describe("Retirement tracking", function() {
+    const retirementDescription1 = "First retirement";
+    const retirementDescription2 = "Second retirement";
+    
+    beforeEach(async function () {
+      // await deployContracts();
+      // // Add and accept a project
+      // await projectRegistry.connect(projectOwner).addProject(
+      //   carbonRemoved,
+      //   ipfsCID,
+      //   uniqueVerificationId
+      // );
+      // await projectRegistry.connect(admin).acceptProject(projectId);
+      
+      // Mint full amount of credits to project owner
+      const creditsIssued = await projectRegistry.getProjectIssuedCredits(projectId);
+      await carbonToken.connect(tokenManager).mintCredits(
+        projectOwner.address,
+        projectId,
+        creditsIssued,
+        "0x"
+      );
+    });
+  
+    it("should correctly track user retirement history", async function () {
+      const creditsIssued = await projectRegistry.getProjectIssuedCredits(projectId);
+      const firstAmount = creditsIssued / BigInt(2);
+      const secondAmount = creditsIssued / BigInt(4);
+      
+      // Make two retirements
+      await carbonToken.connect(projectOwner).retireCredits(
+        projectId,
+        firstAmount,
+        retirementDescription1
+      );
+      
+      await carbonToken.connect(projectOwner).retireCredits(
+        projectId,
+        secondAmount,
+        retirementDescription2
+      );
+  
+      // Get retirement history
+      const history = await carbonToken.getUserRetirementHistory(projectOwner.address);
+      
+      // Verify history length
+      expect(history.length).to.equal(2);
+      
+      // Verify first retirement record
+      expect(history[0].projectId).to.equal(projectId);
+      expect(history[0].amount).to.equal(firstAmount);
+      expect(history[0].description).to.equal(retirementDescription1);
+      expect(history[0].retiree).to.equal(projectOwner.address);
+      
+      // Verify second retirement record
+      expect(history[1].projectId).to.equal(projectId);
+      expect(history[1].amount).to.equal(secondAmount);
+      expect(history[1].description).to.equal(retirementDescription2);
+      expect(history[1].retiree).to.equal(projectOwner.address);
+    });
+  
+    it("should return empty array for user with no retirements", async function () {
+      const history = await carbonToken.getUserRetirementHistory(otherAccount.address);
+      expect(history.length).to.equal(0);
+    });
+  
+    it("should correctly track total project retirements", async function () {
+      const creditsIssued = await projectRegistry.getProjectIssuedCredits(projectId);
+      const firstAmount = creditsIssued / BigInt(2);
+      const secondAmount = creditsIssued / BigInt(4);
+      
+      // Initial total should be 0
+      let totalRetired = await carbonToken.getProjectTotalRetirements(projectId);
+      expect(totalRetired).to.equal(0);
+      
+      // Make first retirement
+      await carbonToken.connect(projectOwner).retireCredits(
+        projectId,
+        firstAmount,
+        retirementDescription1
+      );
+      
+      // Check total after first retirement
+      totalRetired = await carbonToken.getProjectTotalRetirements(projectId);
+      expect(totalRetired).to.equal(firstAmount);
+      
+      // Make second retirement
+      await carbonToken.connect(projectOwner).retireCredits(
+        projectId,
+        secondAmount,
+        retirementDescription2
+      );
+      
+      // Check total after second retirement
+      totalRetired = await carbonToken.getProjectTotalRetirements(projectId);
+      expect(totalRetired).to.equal(firstAmount + secondAmount);
+    });
+  
+    it("should return zero total retirements for unused project", async function () {
+      // Add a new project but don't retire any credits
+      await projectRegistry.connect(projectOwner).addProject(
+        carbonRemoved,
+        "newIPFSCID",
+        "0001/2024"
+      );
+      const newProjectId = 1;
+      
+      const totalRetired = await carbonToken.getProjectTotalRetirements(newProjectId);
+      expect(totalRetired).to.equal(0);
     });
   });
 });
