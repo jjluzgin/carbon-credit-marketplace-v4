@@ -73,7 +73,6 @@ describe("CarbonCreditMarketplace", function () {
     );
     marketplace = await MarketplaceFactory.deploy(
       await carbonToken.getAddress(),
-      await projectRegistry.getAddress(),
       owner.address
     );
     // Add project as seller
@@ -123,8 +122,14 @@ describe("CarbonCreditMarketplace", function () {
       marketFee = await marketplace.platformFeeBasisPoints();
       expect(marketFee).to.equal(newFee); //
     });
+
     it("Should prevent non-owner from updating platform fee", async function () {
       await expect(marketplace.connect(buyer).updatePlatformFee(150)).to.be
+        .revertedWithCustomError;
+    });
+
+    it("Should prevent setting platform fee above 10%", async function () {
+      await expect(marketplace.updatePlatformFee(1001)).to.be // 10.01%
         .revertedWithCustomError;
     });
 
@@ -143,6 +148,19 @@ describe("CarbonCreditMarketplace", function () {
         marketplace.getAddress()
       );
       expect(finalBalance).to.equal(initialBalance + sendAmount);
+    });
+    it("Should emit event when receiving unknown function call", async function () {
+      const randomData = "0x123456";
+
+      const tx = await buyer.sendTransaction({
+        to: marketplace.getAddress(),
+        value: ethers.parseEther("1"),
+        data: randomData,
+      });
+
+      await expect(tx)
+        .to.emit(marketplace, "FallbackCalled")
+        .withArgs(buyer.address, ethers.parseEther("1"), randomData);
     });
   });
 
@@ -279,7 +297,7 @@ describe("CarbonCreditMarketplace", function () {
         projectId
       );
       const firstOrderId = 0;
-      await expect(marketplace.connect(seller).removeSellOrder(firstOrderId))
+      await expect(marketplace.connect(seller).closeSellOrder(firstOrderId))
         .to.emit(marketplace, orderClosedEvent)
         .withArgs(
           firstOrderId,
@@ -305,112 +323,39 @@ describe("CarbonCreditMarketplace", function () {
     it("Should prevent non-owners from cancelling an order", async function () {
       const firstOrderId = 0;
       await expect(
-        marketplace.connect(buyer).removeSellOrder(firstOrderId)
+        marketplace.connect(buyer).closeSellOrder(firstOrderId)
       ).to.be.revertedWithCustomError(marketplace, notOrderOwnerError);
     });
 
     it("Should prevent closing an inactive order", async function () {
       const firstOrderId = 0;
-      await marketplace.connect(seller).removeSellOrder(firstOrderId);
+      await marketplace.connect(seller).closeSellOrder(firstOrderId);
       // Try removing same order again
       await expect(
-        marketplace.connect(seller).removeSellOrder(firstOrderId)
+        marketplace.connect(seller).closeSellOrder(firstOrderId)
       ).to.be.revertedWithCustomError(marketplace, inactiveOrderError);
     });
   });
 
   describe("Order Expiration", function () {
-    // Create an order
-    const orderAmount = 100;
-    const pricePerCredit = ethers.parseEther("0.0001");
-    const orderPrice = BigInt(orderAmount) * pricePerCredit;
-    const orderId = 0;
-
     beforeEach(async function () {
-      // Create sell order
-      await marketplace
-        .connect(seller)
-        .createSellOrder(projectId, orderAmount, pricePerCredit);
-      await marketplace
-        .connect(seller)
-        .createSellOrder(projectId, orderAmount + 100, pricePerCredit);
       await owner.sendTransaction({
         to: marketplace.getAddress(),
         value: ethers.parseEther("0.1"),
       });
     });
 
-    it("Should expire an order after 7 days and emit OrderExpired event", async function () {
-      // Fast forward time by 7 days + 1 second
-      await time.increase(7 * 24 * 60 * 60 + 1);
-
-      // Check order expiration
-      const tx = await marketplace.closeExpiredOrder(orderId);
-
-      // Verify event emission
-      await expect(tx)
-        .to.emit(marketplace, expiredOrderClosedEvent)
-        .withArgs(orderId, seller.address, projectId, orderAmount, orderPrice);
-
-      // Verify order is closed
-      const orderAfter = await marketplace.tradeOrders(orderId);
-      expect(orderAfter.isActive).to.be.false;
-    });
-
-    it("Shouldn't expire an already closed order", async function () {
-      // Fast forward time by 7 days + 1 second
-      await time.increase(7 * 24 * 60 * 60 + 1);
-      // Expire order
-      await marketplace.closeExpiredOrder(orderId);
-
-      // Check order expiration
-      const result = await marketplace.closeExpiredOrder(orderId);
-      const orderAfter = await marketplace.tradeOrders(orderId);
-      expect(orderAfter.isActive).to.be.false;
-      expect(result).to.emit(marketplace, orderNotExpiredEvent);
-    });
-
-    it("Should pay reward to caller for closing expired order", async function () {
-      // Create an order and let it expire
-      await time.increase(7 * 24 * 60 * 60 + 1);
-
-      const initialCallerBalance = await marketplace.accountBalances(
-        buyer.address
-      );
-      const initialContractBalance = await marketplace.accountBalances(
-        marketplace.getAddress()
-      );
-
-      const closeExpiredOrderReward =
-        await marketplace.closeExpiredOrderReward();
-      // Close expired order
-      await marketplace.connect(buyer).closeExpiredOrder(orderId);
-
-      // Check reward was paid
-      const expectedReward =
-        (orderPrice * closeExpiredOrderReward) / BigInt(10000);
-      const finalCallerBalance = await marketplace.accountBalances(
-        buyer.address
-      );
-      const finalContractBalance = await marketplace.accountBalances(
-        marketplace.getAddress()
-      );
-
-      expect(finalCallerBalance).to.equal(
-        initialCallerBalance + expectedReward
-      );
-      expect(finalContractBalance).to.equal(
-        initialContractBalance - expectedReward
-      );
-    });
-
-    it("Should batch close multiple expired orders", async function () {
-      // Create multiple orders
+    it("Should batch close multiple expired orders and pay rewards", async function () {
+      // Create multiple orders with moderate value to ensure contract can pay rewards
       const orderIds = [];
+      const orderValue = ethers.parseEther("0.01"); // Small enough that rewards can be paid
+      const orderAmount = BigInt(100);
+      const orderTotalPrice = orderValue * orderAmount;
+
       for (let i = 0; i < 3; i++) {
         await marketplace
           .connect(seller)
-          .createSellOrder(projectId, 100, ethers.parseEther("0.1"));
+          .createSellOrder(projectId, orderAmount, orderValue);
         orderIds.push(i);
       }
 
@@ -420,17 +365,125 @@ describe("CarbonCreditMarketplace", function () {
       const initialOwnerBalance = await marketplace.accountBalances(
         owner.address
       );
-
+      const initialContractBalance = await marketplace.accountBalances(
+        marketplace.getAddress()
+      );
+      
       // Batch close
       const tx = await marketplace
         .connect(owner)
         .batchCloseExpiredOrders(orderIds);
 
-      // Verify orders closed and reward paid
+      // Calculate expected reward
+      const reward = await marketplace.closeExpiredOrderReward();
+      const expectedTotalPayout = BigInt(orderIds.length)*(orderTotalPrice * reward)/BigInt(10000);
+
+      // Verify balances changed correctly if contract had sufficient funds
+      if (expectedTotalPayout <= initialContractBalance) {
+        const finalOwnerBalance = await marketplace.accountBalances(
+          owner.address
+        );
+        const finalContractBalance = await marketplace.accountBalances(
+          marketplace.getAddress()
+        );
+
+        expect(finalOwnerBalance).to.equal(
+          initialOwnerBalance + expectedTotalPayout
+        );
+        expect(finalContractBalance).to.equal(
+          initialContractBalance - expectedTotalPayout
+        );
+      }
+    });
+
+    it("Should only pay rewards for orders that don't exceed contract balance", async function () {
+      // Create multiple orders with increasing values
+      const orderIds = [];
+      const values = [
+        ethers.parseEther("0.01"), // Small reward
+        ethers.parseEther("0.1"), // Medium reward
+        ethers.parseEther("1.0"), // Large reward
+      ];
+      const amount = BigInt(100);
+
+      for (let i = 0; i < values.length; i++) {
+        await marketplace
+          .connect(seller)
+          .createSellOrder(projectId, amount, values[i]);
+        orderIds.push(i);
+      }
+
+      // Fast forward time
+      await time.increase(7 * 24 * 60 * 60 + 1);
+
+      const initialOwnerBalance = await marketplace.accountBalances(
+        owner.address
+      );
+      
+      const reward = await marketplace.closeExpiredOrderReward();
+      let maxPayout: bigint = BigInt(0);
+      for(const value in values){
+        maxPayout += ((ethers.parseEther("1.11") * amount * reward)/BigInt(10000));
+      }
+
+      // Batch close
+      await marketplace.connect(owner).batchCloseExpiredOrders(orderIds);
+
+      // Verify all orders are closed regardless of reward payment
       for (let orderId of orderIds) {
         const order = await marketplace.tradeOrders(orderId);
         expect(order.isActive).to.be.false;
       }
+
+      // Verify final balance doesn't exceed initial contract balance
+      const finalOwnerBalance = await marketplace.accountBalances(
+        owner.address
+      );
+      expect(finalOwnerBalance - initialOwnerBalance).to.be.lessThan(
+        maxPayout
+      );
+    });
+
+    it("Should handle mix of expired and non-expired orders", async function () {
+      // Create orders
+      const orderIds = []; // Using existing orders from beforeEach
+      const orderValue = ethers.parseEther("0.01"); // Small enough that rewards can be paid
+      const orderAmount = BigInt(100);
+      const orderTotalPrice = orderValue * orderAmount;
+
+      for (let i = 0; i < 2; i++) {
+        await marketplace
+          .connect(seller)
+          .createSellOrder(projectId, orderAmount, orderValue);
+        orderIds.push(i);
+      }
+
+      // Fast forward time
+      await time.increase((7 * 24 * 60 * 60));
+
+      // Create a new order that won't be expired
+      await marketplace
+        .connect(seller)
+        .createSellOrder(projectId, orderAmount, orderValue);
+      orderIds.push(orderIds.length);
+
+      const tx = await marketplace
+        .connect(owner)
+        .batchCloseExpiredOrders(orderIds);
+
+      // First order should be active, second and third not expired
+      const order0 = await marketplace.tradeOrders(0);
+      const order1 = await marketplace.tradeOrders(1);
+      const order2 = await marketplace.tradeOrders(2);
+
+      expect(order0.isActive).to.be.false;
+      expect(order1.isActive).to.be.false;
+      expect(order2.isActive).to.be.true;
+
+      // Verify OrderNotExpired events were emitted
+      await expect(tx)
+        .to.emit(marketplace, "OrderNotExpired")
+        .withArgs(2);
     });
   });
 
@@ -515,9 +568,9 @@ describe("CarbonCreditMarketplace", function () {
       expect(order2.isActive).to.be.false;
     });
 
-    it("Should prevent trading on an inactive order", async function () {
+    it("Should prevent trading an inactive order", async function () {
       // Cancel the order first
-      await marketplace.connect(seller).removeSellOrder(orderId);
+      await marketplace.connect(seller).closeSellOrder(orderId);
 
       await expect(
         marketplace
@@ -526,12 +579,17 @@ describe("CarbonCreditMarketplace", function () {
       ).to.be.revertedWithCustomError(marketplace, orderInactiveError);
     });
 
-    it("Should prevent trading more credits than available", async function () {
+    it("Should revert when executing expired order", async function () {
+      // Fast forward time past expiration
+      await time.increase(7 * 24 * 60 * 60 + 1);
+      // Try to execute expired order
       await expect(
         marketplace
           .connect(buyer)
-          .executeTrade(orderId, { value: orderTotalPrice - BigInt(200) })
-      ).to.be.revertedWithCustomError(marketplace, insufficientPaymentError);
+          .executeTrade(orderId, { value: orderTotalPrice })
+      )
+        .to.be.revertedWithCustomError(marketplace, "ExpiredOrder")
+        .withArgs(orderId);
     });
 
     it("Should refund user overpayments", async function () {
@@ -553,6 +611,14 @@ describe("CarbonCreditMarketplace", function () {
       const expectedBalance = initialBuyerBalance + overpayAmount;
       // Verify buyer received the refund (within small margin of error for gas estimation)
       expect(finalBuyerBalance).to.equal(expectedBalance);
+    });
+
+    it("Should revert when not paying enough money to buy", async function () {
+      await expect(
+        marketplace
+          .connect(buyer)
+          .executeTrade(orderId, { value: orderTotalPrice - BigInt(200) })
+      ).to.be.revertedWithCustomError(marketplace, insufficientPaymentError);
     });
   });
   describe("Withdraw account balance", function () {

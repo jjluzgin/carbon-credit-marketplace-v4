@@ -9,7 +9,7 @@ import { marketplaceContract, carbonTokenContract } from "@/constants/constants"
 import axios from "axios";
 import { Account } from "thirdweb/wallets";
 
-const SellOrderForm = () => {
+const SubmitSellOrder = () => {
   const account = useActiveAccount();
   const [userProjects, setUserProjects] = useState<number[]>([]);
   const [projectId, setProjectId] = useState<number | undefined>();
@@ -183,4 +183,4 @@ const SellOrderForm = () => {
   );
 };
 
-export default SellOrderForm;
+export default SubmitSellOrder;

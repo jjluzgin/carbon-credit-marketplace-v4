@@ -10,7 +10,7 @@ import UserProjectsTable from "./UserProjectsTable";
 import PendingProjectsTable from "./PendingProjectsTable";
 import IssueCreditsComponent from "./IssueCreditsComponent";
 import UserTokens from "./UserTokens";
-import SellOrderForm from "./SellOrderForm";
+import SubmitSellOrder from "./SubmitSellOrder";
 import UserSellOrders from "./UserSellOrders";
 import SellOrdersComponent from "./SellOrdersComponent";
 
@@ -100,7 +100,7 @@ export default function MarketplaceDashboard() {
             <SellOrdersComponent />
           </div>
           <div className="bg-white rounded-lg shadow p-4">
-            <SellOrderForm/>
+            <SubmitSellOrder/>
             <UserSellOrders />
           </div>
         </div>

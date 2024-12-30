@@ -17,7 +17,7 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
 
     // Contracts we'll interact with
     CarbonCreditToken public carbonToken;
-    CarbonProjectRegistry public projectRegistry;
+
     // Trade order structure
     struct TradeOrder {
         bool isActive;
@@ -29,8 +29,9 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
     }
     // Mapping of order ID to Trade Order
     mapping(uint256 => TradeOrder) public tradeOrders;
+    // Keep count of orders
     uint256 internal nextOrderId;
-    // Mapping to store how much 
+    // Mapping stores how much ETH each account is allowed to withdraw
     mapping(address => uint256) public accountBalances;
 
     // Modifier to restrict functions to when marketplace is not paused
@@ -40,12 +41,10 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
     }
 
     constructor(
-        address _carbonTokenAddress, 
-        address _projectRegistryAddress,
+        address _carbonTokenAddress,
         address _initialOwner
     ) payable Ownable(_initialOwner){
         carbonToken = CarbonCreditToken(_carbonTokenAddress);
-        projectRegistry = CarbonProjectRegistry(_projectRegistryAddress);
     }
 
     receive() external payable {
@@ -58,7 +57,6 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
     
     function updatePlatformFee(uint16 newFeeBasisPoints) external onlyOwner {
         require(newFeeBasisPoints <= 1000, "Fee cannot exceed 10%");
-        require(newFeeBasisPoints > closeExpiredOrderReward, "Fee is too small");
         platformFeeBasisPoints = newFeeBasisPoints;
         emit PlatformFeeUpdated(newFeeBasisPoints);
     }
@@ -112,14 +110,14 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
     // Execute a trade order
     function executeTrade(uint256 _orderId) external payable whenNotPaused nonReentrant {        
         TradeOrder memory order = tradeOrders[_orderId];
-        // Initial checks
-        if(!order.isActive) revert InactiveOrder(_orderId); // Revert if order is inactive
-        if(order.isActive && order.expirationTimestamp < block.timestamp){  // Revert and change order statuses if order is active but expired
-            closeOrder(_orderId);
-            emit ExpiredOrderClosed(_orderId, order.seller, order.projectId, order.creditsAmount, order.orderPrice);
+        // Revert if order is inactive
+        if(!order.isActive) revert InactiveOrder(_orderId);
+        // Revert if order is active but expired
+        if(order.isActive && order.expirationTimestamp < block.timestamp){
             revert ExpiredOrder(_orderId); // Would this also revert the changes made by closeOrder function?
         }
-        if(msg.value < order.orderPrice) revert InsufficientPayment();  // Revert if sender did not include enough value
+        // Revert if sender did not include enough value for trade
+        if(msg.value < order.orderPrice) revert InsufficientPayment();
 
         // Modify order state
         tradeOrders[_orderId].isActive = false;
@@ -148,7 +146,7 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
     }
 
     // Cancel an existing sell order
-    function removeSellOrder(uint256 _orderId) external whenNotPaused {
+    function closeSellOrder(uint256 _orderId) external whenNotPaused {
         TradeOrder memory order = tradeOrders[_orderId];
         if(!order.isActive) revert InactiveOrder(_orderId);
         if(order.seller != msg.sender) revert NotOrderOwner();
@@ -156,28 +154,11 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
         emit OrderClosed(_orderId, msg.sender, order.projectId, order.creditsAmount, order.orderPrice);
     }
 
-    function closeExpiredOrder(uint256 _orderId) external {
-        TradeOrder memory order = tradeOrders[_orderId];
-        if(order.isActive && block.timestamp > order.expirationTimestamp){
-            closeOrder(_orderId);
-            unchecked{
-                uint256 callerProceeds = order.orderPrice * closeExpiredOrderReward / BIPS_DENOMINATOR; // Pay caller
-                uint256 contractBalance = accountBalances[address(this)];
-                if(contractBalance < callerProceeds)
-                    revert InsufficientBalance(callerProceeds);
-                accountBalances[address(this)] -= callerProceeds;
-                accountBalances[msg.sender] += callerProceeds;
-            }
-            emit ExpiredOrderClosed(_orderId, order.seller, order.projectId, order.creditsAmount, order.orderPrice);
-        }
-        emit OrderNotExpired(_orderId);
-    }
-
     function batchCloseExpiredOrders(uint256[] calldata _orderIds) external onlyOwner {
         uint256 length = _orderIds.length;
         uint256[] memory expiredOrders = new uint256[](length);
         uint256 expiredCount;
-        uint callerPayout;
+        uint256 payout;
         uint256 contractBalance = accountBalances[address(this)];
         for(uint256 i = 0; i < length; i++){
             uint256 id = _orderIds[i];
@@ -185,21 +166,23 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
             if(order.isActive && block.timestamp > order.expirationTimestamp){
                 closeOrder(id);
                 unchecked{
-                    callerPayout += order.orderPrice * closeExpiredOrderReward / BIPS_DENOMINATOR; // Pay caller
-                    if(contractBalance < callerPayout)
-                        revert InsufficientBalance(callerPayout);
+                    // Calculate payout for current order
+                    uint256 payoutForCurrentOrder = order.orderPrice * closeExpiredOrderReward / BIPS_DENOMINATOR;
+                    // If contract has funds increase total payout
+                    if((payout + payoutForCurrentOrder) <= contractBalance)
+                        payout += payoutForCurrentOrder;
                     expiredOrders[expiredCount] = id;
                     expiredCount++;
                 }
             }
-            if(order.isActive && block.timestamp < order.expirationTimestamp){
+            else if(order.isActive && block.timestamp < order.expirationTimestamp){
                 emit OrderNotExpired(id);
             }
         }
-        if(callerPayout > 0)
-        {
-            accountBalances[address(this)] -= callerPayout;
-            accountBalances[msg.sender] += callerPayout;
+        if(payout > 0){
+            // Transfer payout from address to owner balance
+            accountBalances[address(this)] -= payout;
+            accountBalances[msg.sender] += payout;
         }
         emit BatchExpiredOrdersClosed(expiredOrders);
     }
