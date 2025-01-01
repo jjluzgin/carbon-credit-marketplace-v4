@@ -67,7 +67,7 @@ const RetireButton: React.FC<RetireButtonProps> = ({ tokenId, account, initialTo
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button size="sm">Retire</Button>
+        <Button size="sm" className="bg-red-800">Retire</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

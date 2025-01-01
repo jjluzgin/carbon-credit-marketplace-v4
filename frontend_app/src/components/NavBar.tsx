@@ -11,7 +11,6 @@ export function NavBar(){
         <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold">Carbon Credits Marketplace</h1>
             <div className="items-center flex gap-2">
-                <p>{address?.address}</p>
                 <ConnectButton
                     client={client}
                     // wallets={wallets}

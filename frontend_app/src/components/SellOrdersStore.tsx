@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { SellOrderDto } from '../../../shared/types/OrderDto';
 import axios from 'axios';
 
-const SellOrdersComponent = () => {
+const SellOrdersStore = () => {
   const account = useActiveAccount();
   const [orders, setOrders] = useState<SellOrderDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -66,4 +66,4 @@ const SellOrdersComponent = () => {
   );
 }
 
-export default SellOrdersComponent;
+export default SellOrdersStore;

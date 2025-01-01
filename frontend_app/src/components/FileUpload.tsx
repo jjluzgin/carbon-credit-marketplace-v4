@@ -76,7 +76,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           multiple={true}
         />
         {files.length > 0 && (
-          <Button type="button" variant="ghost" size="icon" onClick={clearAllFiles} className="h-8 w-8">
+          <Button type="button" variant="ghost" size="icon" onClick={clearAllFiles} className="h-8 w-8" title="Clear all files">
             <X className="h-4 w-4" />
           </Button>
         )}
@@ -85,10 +85,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       <div className="space-y-2">
         {files.map((file, index) => (
           <div key={index} className="flex items-center gap-2">
-            <span className="text-sm truncate w-40">{file.name}</span>
             <Button type="button" variant="ghost" size="icon" onClick={() => clearFile(index)} className="h-8 w-8">
               <X className="h-4 w-4" />
             </Button>
+            <span className="text-sm truncate w-40">{file.name}</span>
           </div>
         ))}
       </div>

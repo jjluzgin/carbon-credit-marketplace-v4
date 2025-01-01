@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/
 import { AlertCircle, FileText, RefreshCw, Wallet, Minus } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import SubmitProjectCard from "./SubmitProjectCard";
 
 const UserProjectsTable: React.FC = () => {
   const [projects, setProjects] = useState<ProjectInfoDto[]>([]);
@@ -18,18 +19,16 @@ const UserProjectsTable: React.FC = () => {
 
   const getStatusBadge = (status: number) => {
     const statusConfig = {
-      0: { label: "Pending", className: "bg-orange-500 hover:bg-orange-600" },
+      0: { label: "Pending", className: "bg-orange-500 hover:bg-yellow-600" },
       1: { label: "Audited", className: "bg-green-500 hover:bg-green-600" },
-      2: { label: "Rejected", className: "bg-red-500 hover:bg-red-600" }
+      2: { label: "Rejected", className: "bg-red-500 hover:bg-red-600" },
     };
-    const config = statusConfig[status as keyof typeof statusConfig] || 
-                  { label: "Unknown", className: "bg-gray-500 hover:bg-gray-600" };
-    
-    return (
-      <Badge className={`${config.className} text-white`}>
-        {config.label}
-      </Badge>
-    );
+    const config = statusConfig[status as keyof typeof statusConfig] || {
+      label: "Unknown",
+      className: "bg-gray-500 hover:bg-gray-600",
+    };
+
+    return <Badge className={`${config.className} text-white`}>{config.label}</Badge>;
   };
 
   const fetchProjects = async () => {
@@ -70,20 +69,20 @@ const UserProjectsTable: React.FC = () => {
         <div className="flex justify-between items-center">
           <div>
             <CardTitle>Your Carbon Projects</CardTitle>
-            <CardDescription>
-              View and manage your carbon removal projects
-            </CardDescription>
+            <CardDescription>View and manage your carbon removal projects</CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchProjects}
-            disabled={loading}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </Button>
+          <div className="ml-auto flex gap-4">
+            <Button
+              variant="outline"
+              // size="sm"
+              onClick={fetchProjects}
+              disabled={loading}
+              className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              {loading ? "Refreshing..." : "Refresh"}
+            </Button>
+            <SubmitProjectCard />
+          </div>
         </div>
       </CardHeader>
 
@@ -107,7 +106,7 @@ const UserProjectsTable: React.FC = () => {
                   <TableHead className="text-center">Verification ID</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-center">Data</TableHead>
-                  <TableHead className="text-center">Carbon Removed</TableHead>
+                  <TableHead className="text-center">Carbon Removed (CO2e)</TableHead>
                   <TableHead className="text-center">Credits Issued</TableHead>
                   <TableHead className="text-center">Authentication Date</TableHead>
                 </TableRow>
@@ -116,19 +115,14 @@ const UserProjectsTable: React.FC = () => {
                 {projects.length > 0 ? (
                   projects.map((project) => (
                     <TableRow key={project.verificationId}>
-                      <TableCell className="font-medium text-center">
-                        {project.verificationId}
-                      </TableCell>
-                      <TableCell className="text-center align-middle">
-                        {getStatusBadge(project.status)}
-                      </TableCell>
+                      <TableCell className="font-medium text-center">{project.verificationId}</TableCell>
+                      <TableCell className="text-center align-middle">{getStatusBadge(project.status)}</TableCell>
                       <TableCell className="text-center align-middle">
                         <Button
                           variant="ghost"
                           size="sm"
                           className="gap-2"
-                          onClick={() => window.open(`https://ipfs.io/ipfs/${project.ipfsCID}/`, '_blank')}
-                        >
+                          onClick={() => window.open(`https://ipfs.io/ipfs/${project.ipfsCID}/`, "_blank")}>
                           <FileText className="h-4 w-4" />
                           View Data
                         </Button>

@@ -2,7 +2,7 @@ import { useActiveAccount } from "thirdweb/react";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { carbonTokenContract } from "@/constants/constants";
-import { prepareContractCall, readContract, sendTransaction } from "thirdweb";
+import { readContract } from "thirdweb";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card";
 import { Table, TableBody, TableCell, TableHeader, TableRow, TableHead } from "./ui/table";
 import { Button } from "./ui/button";
@@ -14,10 +14,11 @@ import { Alert, AlertDescription } from "./ui/alert";
 
 interface TokenBalance {
   tokenId: number;
+  verificationId: string;
   balance: number;
 }
 
-const UserTokens: React.FC = () => {
+const UserCreditsTable: React.FC = () => {
   const account = useActiveAccount();
   const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -29,7 +30,7 @@ const UserTokens: React.FC = () => {
     try {
       const { data } = await axios.get(`http://localhost:5000/api/userTokens/${account?.address}`);
       const tokenIds = data.tokenIds;
-      
+
       let balances: readonly bigint[] = [];
       if (tokenIds.length > 0) {
         const accounts: string[] = Array(tokenIds.length).fill(account?.address);
@@ -39,12 +40,22 @@ const UserTokens: React.FC = () => {
           params: [accounts, tokenIds],
         });
       }
-      
+      const verificationIds = tokenIds.map(async (id: string) => {
+        try {
+          const { data } = await axios.get(`http://localhost:5000/api/project/${id}/verificationId`);
+          return data.id;
+        } catch (error) {
+          console.error("Error making Axios call:", error);
+          throw error;
+        }
+      });
+
       const tokenBalances = tokenIds.map((id: number, index: number) => ({
         tokenId: id,
+        verificationId: verificationIds[index],
         balance: parseInt(balances[index].toString()),
       }));
-      
+
       setTokenBalances(tokenBalances);
     } catch (error) {
       console.error("Error fetching token balances:", error);
@@ -77,19 +88,11 @@ const UserTokens: React.FC = () => {
         <div className="flex justify-between items-center">
           <div>
             <CardTitle>Your Carbon Credits</CardTitle>
-            <CardDescription className="mt-1">
-              View and manage your carbon credit tokens
-            </CardDescription>
+            <CardDescription className="mt-1">View and manage your carbon credit tokens</CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchTokenBalances}
-            disabled={loading}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Refreshing...' : 'Refresh'}
+          <Button variant="outline" size="sm" onClick={fetchTokenBalances} disabled={loading} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            {loading ? "Refreshing..." : "Refresh"}
           </Button>
         </div>
       </CardHeader>
@@ -113,18 +116,18 @@ const UserTokens: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Token ID</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Credit</TableHead>
+                  <TableHead className="font-semibold text-gray-700 text-center">Balance</TableHead>
+                  <TableHead className="font-semibold text-gray-700 text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tokenBalances.map((token) => (
                   <TableRow key={token.tokenId}>
-                    <TableCell className="font-medium">#{token.tokenId}</TableCell>
-                    <TableCell>{token.balance.toLocaleString()} credits</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                    <TableCell className="align-middle">{token.verificationId}</TableCell>
+                    <TableCell className="text-center align-middle">{token.balance.toLocaleString()} credits</TableCell>
+                    <TableCell className="text-center align-middle">
+                      <div className="flex justify-center gap-2">
                         <ProjectDetailsButton tokenId={token.tokenId} account={account} />
                         <RetireButton tokenId={token.tokenId} account={account} initialTokenBalance={token.balance} />
                       </div>
@@ -147,4 +150,4 @@ const UserTokens: React.FC = () => {
   );
 };
 
-export default UserTokens;
+export default UserCreditsTable;

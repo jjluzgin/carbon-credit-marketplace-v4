@@ -8,13 +8,14 @@ import { projectRegistryContract } from "@/constants/constants";
 import { useActiveAccount } from "thirdweb/react";
 import { FileUpload } from "./FileUpload";
 import { Alert, AlertDescription } from "./ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Plus } from "lucide-react";
 import { upload } from "thirdweb/storage";
 import { client } from "@/app/client";
+import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 
 const SubmitProjectCard = () => {
   const account = useActiveAccount();
-  const [ipfsCID, setIpfsCID] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [carbonReduction, setCarbonReduction] = useState<number | undefined>();
   const [verificationId, setVerificationId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,22 +27,38 @@ const SubmitProjectCard = () => {
       throw new Error("Please select a file first");
     }
     try {
-      const uris = await upload({
-        client: client,
-        files: files,
-        uploadWithoutDirectory: false,
-      });
-      console.log("URIS:", uris);
-      const cid = uris[0].replace("ipfs://", "").split("/")[0];
+      let cid = "";
+      if(files.length == 0)
+        return "";
+      else if(files.length > 1){
+        const uris = await upload({
+          client: client,
+          files: files,
+          uploadWithoutDirectory: false,
+        });
+        cid = uris[0].replace("ipfs://", "").split("/")[0];
+      }else{
+        const uri = await upload({
+          client: client,
+          files: [files[0]],
+          uploadWithoutDirectory: false,
+        });
+        cid = uri.replace("ipfs://", "").split("/")[0];
+      }
       console.log("CID:", cid);
-
       console.log(`https://ipfs.io/ipfs/${cid}/`);
-      setIpfsCID(cid);
+      return cid;
     } catch (error) {
-      setIpfsCID("");
       setError(`Error uploading document: ${error}`);
       throw error;
     }
+  };
+
+  const resetForm = () => {
+    setCarbonReduction(undefined);
+    setVerificationId("");
+    setFiles([]);
+    setError("");
   };
 
   const handleProjectSubmit = async () => {
@@ -60,7 +77,7 @@ const SubmitProjectCard = () => {
 
     setIsSubmitting(true);
     setError("");
-    await handleFileUpload();
+    const ipfsCID = await handleFileUpload();
     try {
       const transaction = await prepareContractCall({
         contract: projectRegistryContract,
@@ -72,61 +89,74 @@ const SubmitProjectCard = () => {
         account: account,
       });
       console.log("Transaction successful:", transactionHash);
-      setCarbonReduction(undefined);
-      setFiles([]);
-      setVerificationId("");
+      resetForm();
     } catch (error) {
       console.error("Error submitting project:", error);
       setError(error instanceof Error ? error.message : "Failed to submit project.");
+      alert("Project submition failed");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Card className="w-full max-w-lg mx-auto p-4">
-      <CardHeader>
-        <CardTitle>Submit Your Project</CardTitle>
-        <CardDescription>Provide project details to submit them to the blockchain.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        <div className="space-y-4">
-          {/* <Input
-            placeholder="Email Address"
-            value={userEmail}
-            onChange={(e) => setUserEmail(e.target.value)}
-            type="email"
-            required
-          /> */}
-          <Input
-            placeholder="Carbon Reduced"
-            value={carbonReduction}
-            type="number"
-            onChange={(e) => setCarbonReduction(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-          />
-          <FileUpload onFileChange={setFiles} disabled={isSubmitting} label="Verified Documents" />
-          <Input
-            placeholder="Verification ID"
-            value={verificationId}
-            onChange={(e) => setVerificationId(e.target.value)}
-          />
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-end">
-        <Button
-          onClick={handleProjectSubmit}
-          disabled={isSubmitting}
-          className="bg-blue-500 text-white hover:bg-blue-600">
-          {isSubmitting ? "Submitting..." : "Submit Project"}
+    <Dialog open={isDialogOpen} onOpenChange={(open) => {
+      setIsDialogOpen(open);
+      if (!open) resetForm();
+    }}>
+      <DialogTrigger asChild>
+        <Button className="gap-2">
+          <Plus className="w-4 h-4" />
+          Submit New Project
         </Button>
-      </CardFooter>
-    </Card>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <Card className="border-0 shadow-none">
+          <CardHeader>
+            <CardTitle>Submit New Project</CardTitle>
+            <CardDescription>Provide project details to submit them to the blockchain.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-4">
+              <Input
+                placeholder="Verification ID"
+                value={verificationId}
+                onChange={(e) => setVerificationId(e.target.value)}
+              />
+              <Input
+                placeholder="Carbon Reduction in tons (CO2e)"
+                value={carbonReduction}
+                type="number"
+                onChange={(e) => setCarbonReduction(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+              />
+              <FileUpload onFileChange={setFiles} disabled={isSubmitting} label="Upload project files" />
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-end gap-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleProjectSubmit}
+              disabled={isSubmitting}
+              className="bg-blue-500 text-white hover:bg-blue-600"
+            >
+              {isSubmitting ? "Submitting..." : "Submit Project"}
+            </Button>
+          </CardFooter>
+        </Card>
+      </DialogContent>
+    </Dialog>
   );
 };
 

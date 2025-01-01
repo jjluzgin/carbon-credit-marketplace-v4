@@ -45,7 +45,9 @@ export class ProjectController {
       } else {
         console.log("serving from db");
         const projectRepository = AppDataSource.getRepository(Project);
-        const project = await projectRepository.findOne({where:{projectId: parsedId}});
+        const project = await projectRepository.findOne({
+          where: { projectId: parsedId },
+        });
         const dto: ProjectInfoDto = {
           verificationId: project.verificationId,
           ipfsCID: project.ipfsCID,
@@ -53,19 +55,49 @@ export class ProjectController {
           carbonRemoved: project.carbonRemoved,
           creditsIssued: project.creditsIssued,
           authenticationDate: project.authenticationDate,
-        }
+        };
         cache.put(cacheKey, dto, 10000);
         res.status(200).json({ project: dto });
         return;
       }
     } catch (error) {
       console.error("Error fetching project info:", error);
-      res.status(500).json({
+      res.status(400).json({
         message: "An error occurred while fetching project info.",
       });
       return;
     }
   }
+
+  static async getProjectVerificationId(req: Request, res: Response) {
+    const { id } = req.params;
+    const cacheKey = `verificationId_${id}`;
+    try {
+      const cachedData = cache.get(cacheKey);
+      if (cachedData) {
+        console.log("serving from cache");
+        res.status(200).json({ id: cachedData });
+        return;
+      } else {
+        const parsedId = parseInt(id);
+        console.log("serving from db");
+        const projectRepository = AppDataSource.getRepository(Project);
+        const project = await projectRepository.findOne({
+          where: { projectId: parsedId },
+        });
+        cache.put(cacheKey, project.verificationId, 10000);
+        res.status(200).json({ id: project.verificationId });
+        return;
+      }
+    } catch (error) {
+      console.error("Error fetching project verification ID:", error);
+      res.status(400).json({
+        message: "An error occurred while fetching project verification ID.",
+      });
+      return;
+    }
+  }
+
   static async addProject(req: Request, res: Response) {
     const {
       projectId,
@@ -89,9 +121,14 @@ export class ProjectController {
     project.ipfsCID = ipfsCID;
     project.carbonRemoved = parseInt(carbonReduction);
     project.status = parseInt(status);
-
-    const projectRepository = AppDataSource.getRepository(Project);
-    await projectRepository.save(project);
+    try {
+      const projectRepository = AppDataSource.getRepository(Project);
+      await projectRepository.save(project);
+    } catch (error) {
+      console.log("Error", error);
+      res.status(400).json({ message: "Adding project failed!", error: error });
+      return;
+    }
 
     res.status(200).json({ message: "Project added succesfully" });
     return;
@@ -151,7 +188,7 @@ export class ProjectController {
       return;
     } catch (error) {
       console.error("Error fetching user projects:", error);
-      res.status(500).json({
+      res.status(400).json({
         message: "An error occurred while fetching user projects.",
       });
       return;
@@ -196,7 +233,7 @@ export class ProjectController {
     } catch (error) {
       console.error("Error updating project:", error);
       res
-        .status(500)
+        .status(400)
         .json({ message: "An error occurred while updating the project" });
       return;
     }

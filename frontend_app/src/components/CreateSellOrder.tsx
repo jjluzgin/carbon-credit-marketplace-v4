@@ -4,17 +4,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useActiveAccount } from "thirdweb/react";
-import { Address, prepareContractCall, readContract, sendTransaction } from "thirdweb";
+import { prepareContractCall, readContract, sendTransaction } from "thirdweb";
 import { marketplaceContract, carbonTokenContract } from "@/constants/constants";
 import axios from "axios";
-import { Account } from "thirdweb/wallets";
 
-const SubmitSellOrder = () => {
+interface ProjectInfo {
+  id: number;
+  verificationId: string;
+}
+
+const CreateSellOrder = () => {
   const account = useActiveAccount();
-  const [userProjects, setUserProjects] = useState<number[]>([]);
+  const [userProjects, setUserProjects] = useState<ProjectInfo[]>([]);
   const [projectId, setProjectId] = useState<number | undefined>();
   const [amount, setAmount] = useState<string>("");
-  const [pricePerCredit, setPricePerCredit] = useState<string>("");
+  const [pricePerCreditInEth, setPricePerCreditInEth] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
   const [isCheckingApproval, setIsCheckingApproval] = useState(false);
@@ -23,8 +27,15 @@ const SubmitSellOrder = () => {
   const fetchUserTokens = async () => {
     try {
       const { data } = await axios.get(`http://localhost:5000/api/userTokens/${account?.address}`);
-      const tokenIds = data.tokenIds;
-      setUserProjects(tokenIds);
+      const projectIds = data.tokenIds;
+      const projectDetails = projectIds.map(async (projectId: number) => {
+        const { data } = await axios.get(`http://localhost:5000/api/project/${projectId}/verificationId`);
+        return {
+          id: projectId,
+          verificationId: data.id,
+        };
+      });
+      setUserProjects(await Promise.all(projectDetails));
     } catch (error) {
       console.error("Error fetching user tokens:", error);
     }
@@ -78,7 +89,7 @@ const SubmitSellOrder = () => {
   };
 
   const handleSubmit = async () => {
-    if (projectId === undefined || !amount || !pricePerCredit) {
+    if (projectId === undefined || !amount || !pricePerCreditInEth) {
       alert("All fields are required!");
       return;
     }
@@ -93,10 +104,11 @@ const SubmitSellOrder = () => {
 
     setIsSubmitting(true);
     try {
+      const pricePerCreditInWei = BigInt(Math.floor(parseFloat(pricePerCreditInEth) * 1e18));
       const transaction = await prepareContractCall({
         contract: marketplaceContract,
         method: "function createSellOrder(uint256 _projectId, uint256 _amount, uint256 _pricePerCredit)",
-        params: [BigInt(projectId), BigInt(amount), BigInt(pricePerCredit)],
+        params: [BigInt(projectId), BigInt(amount), pricePerCreditInWei],
       });
       const { transactionHash } = await sendTransaction({
         transaction: transaction,
@@ -105,7 +117,7 @@ const SubmitSellOrder = () => {
       console.log("Transaction successful:", transactionHash);
       setProjectId(undefined);
       setAmount("");
-      setPricePerCredit("");
+      setPricePerCreditInEth("");
     } catch (error) {
       console.error("Error posting order:", error);
       alert("Failed to post order.");
@@ -137,9 +149,9 @@ const SubmitSellOrder = () => {
               <SelectValue placeholder="Select a project" />
             </SelectTrigger>
             <SelectContent>
-              {userProjects.map((id) => (
-                <SelectItem key={id} value={id.toString()}>
-                  Project ID: {id}
+              {userProjects.map((project) => (
+                <SelectItem key={project.id} value={project.id.toString()}>
+                  {project.verificationId}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -158,15 +170,20 @@ const SubmitSellOrder = () => {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Price per Credit</label>
+          <label className="text-sm font-medium">Price per Credit (ETH)</label>
           <Input
             type="number"
-            placeholder="Enter price per credit"
-            value={pricePerCredit}
-            onChange={(e) => setPricePerCredit(e.target.value)}
+            placeholder="Enter price in ETH"
+            value={pricePerCreditInEth}
+            onChange={(e) => setPricePerCreditInEth(e.target.value)}
             min="0"
-            step="0.01"
+            step="0.000001"
           />
+          {pricePerCreditInEth && (
+            <p className="text-sm text-gray-500 mt-1">
+              ≈ {(parseFloat(pricePerCreditInEth) * 1e18).toLocaleString()} Wei
+            </p>
+          )}
         </div>
 
         {!isApproved && (
@@ -183,4 +200,4 @@ const SubmitSellOrder = () => {
   );
 };
 
-export default SubmitSellOrder;
+export default CreateSellOrder;

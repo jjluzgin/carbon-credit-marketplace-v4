@@ -58,8 +58,8 @@ const IssueCreditsComponent = () => {
   return (
     <Card className="w-full max-w-lg mx-auto p-4">
       <CardHeader>
-        <CardTitle>Submit Your Project</CardTitle>
-        <CardDescription>Provide project details to submit them to the blockchain.</CardDescription>
+        <CardTitle>Issue Carbon Credits</CardTitle>
+        <CardDescription>Emit carbon credits to project owners by providing neccessary data.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">

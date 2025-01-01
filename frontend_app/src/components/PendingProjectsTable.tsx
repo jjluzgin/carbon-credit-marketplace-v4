@@ -7,7 +7,9 @@ import { useActiveAccount } from "thirdweb/react";
 import { projectRegistryContract } from "@/constants/constants";
 import { prepareContractCall, sendTransaction } from "thirdweb";
 import { Button } from "./ui/button";
-import { FileText } from "lucide-react";
+import { AlertCircle, FileText, RefreshCw, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Alert, AlertDescription } from "./ui/alert";
 
 const PendingProjectsTable: React.FC = () => {
   const [pendingProjects, setPendingProjects] = useState<PendingProjectDto[]>([]);
@@ -60,72 +62,103 @@ const PendingProjectsTable: React.FC = () => {
   useEffect(() => {
     fetchProjects();
   }, [account]);
-
-  if (loading) {
-    return (
-      <div>
-        <Skeleton className="h-6 w-full mb-2" />
-        <Skeleton className="h-6 w-full mb-2" />
-        <Skeleton className="h-6 w-full" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return <p className="text-red-500">Error: {error}</p>;
-  }
-
+  
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableCell>Verification ID</TableCell>
-          <TableCell>Data</TableCell>
-          <TableCell>Carbon Removed</TableCell>
-          <TableCell>Actions</TableCell>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {pendingProjects.length > 0 ? (
-          pendingProjects.map((project) => (
-            <TableRow key={project.verificationId}>
-              <TableCell>{project.verificationId}</TableCell>
-              <TableCell className="text-center align-middle">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => window.open(`https://ipfs.io/ipfs/${project.ipfsCID}/`, "_blank")}>
-                  <FileText className="h-4 w-4" />
-                  View Data
-                </Button>
-              </TableCell>
-              <TableCell>{project.carbonRemoved ?? 0}</TableCell>
-              <TableCell>
-                <button
-                  className="btn btn-success mr-2"
-                  onClick={() => handleButtonClick(project.projectId, "accept")}
-                  disabled={processing[project.projectId]}>
-                  {processing[project.projectId] ? "Processing..." : "Accept"}
-                </button>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => handleButtonClick(project.projectId, "reject")}
-                  disabled={processing[project.projectId]}>
-                  {processing[project.projectId] ? "Processing..." : "Reject"}
-                </button>
-              </TableCell>
-            </TableRow>
-          ))
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle>Pending Carbon Projects</CardTitle>
+            <CardDescription>View and manage pending carbon removal projects</CardDescription>
+          </div>
+          <>
+            <Button variant="outline" onClick={fetchProjects} disabled={loading} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              {loading ? "Refreshing..." : "Refresh"}
+            </Button>
+          </>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {error ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : loading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
         ) : (
-          <TableRow>
-            <TableCell colSpan={5} className="text-center">
-              No projects found.
-            </TableCell>
-          </TableRow>
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableCell className="font-semibold text-gray-700">Verification ID</TableCell>
+                  <TableCell className="font-semibold text-gray-700 text-center">Data</TableCell>
+                  <TableCell className="font-semibold text-gray-700 text-center">Carbon Removed</TableCell>
+                  <TableCell className="font-semibold text-gray-700 text-center">Actions</TableCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingProjects.length > 0 ? (
+                  pendingProjects.map((project) => (
+                    <TableRow key={project.verificationId}>
+                      <TableCell className="align-middle">{project.verificationId}</TableCell>
+                      <TableCell className="text-center align-middle">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => window.open(`https://ipfs.io/ipfs/${project.ipfsCID}/`, "_blank")}>
+                          <FileText className="h-4 w-4" />
+                          View Data
+                        </Button>
+                      </TableCell>
+                      <TableCell className="text-center align-middle">{project.carbonRemoved ?? 0}</TableCell>
+                      <TableCell className="text-center align-middle">
+                        {processing[project.projectId] ? (
+                          <span className="text-gray-500 font-semibold">Processing...</span>
+                        ) : (
+                          <>
+                            <button
+                              className="btn btn-success mr-2"
+                              onClick={() =>
+                                confirm(`Accepting project ${project.verificationId}?`) &&
+                                handleButtonClick(project.projectId, "accept")
+                              }
+                              disabled={processing[project.projectId]}>
+                              <ThumbsUp />
+                            </button>
+                            <button
+                              className="btn btn-danger"
+                              onClick={() =>
+                                confirm(`Rejecting project ${project.verificationId}?`) &&
+                                handleButtonClick(project.projectId, "reject")
+                              }
+                              disabled={processing[project.projectId]}>
+                              <ThumbsDown />
+                            </button>
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      No projects found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </>
         )}
-      </TableBody>
-    </Table>
+      </CardContent>
+    </Card>
   );
 };
 

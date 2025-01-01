@@ -9,10 +9,13 @@ import axios from "axios";
 import { useActiveAccount } from "thirdweb/react";
 import { SellOrderDto } from "../../../shared/types/OrderDto";
 
+interface SellOrderDtoWithVerification extends SellOrderDto {
+  verificationId: number;
+}
 
 const UserSellOrders = () => {
   const [cancellingOrderId, setCancellingOrderId] = useState<number | null>(null);
-  const [userOrders, setUserOrders] = useState<SellOrderDto[]>([]);
+  const [userOrders, setUserOrders] = useState<SellOrderDtoWithVerification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const account = useActiveAccount();
 
@@ -58,7 +61,16 @@ const UserSellOrders = () => {
     try {
       const { data } = await axios.get(`http://localhost:5000/api/orders/${account?.address}`);
       const orders = data.orders;
-      setUserOrders(orders);
+      const ordersWithVerificationId = orders.map(async (order : SellOrderDto) => {
+        try{
+          const { data } = await axios.get(`http://localhost:5000/api/project/${order.projectId}/verificationId`);
+          return {...order, verificationId: data.id};
+        } catch (error) {
+          console.error("Error fetching verification ids:", error);
+          throw error;
+        }
+      });
+      setUserOrders(await Promise.all(ordersWithVerificationId));
     } catch (error) {
       console.error("Error fetching token balances:", error);
     } finally {
@@ -103,7 +115,7 @@ const UserSellOrders = () => {
           <TableBody>
             {userOrders.map((order) => (
               <TableRow key={order.orderId}>
-                <TableCell className="font-medium">#{order.projectId}</TableCell>
+                <TableCell className="font-medium">#{order.verificationId}</TableCell>
                 <TableCell>{order.creditsAmount}</TableCell>
                 <TableCell>{formatPrice(order.totalPriceWei)}</TableCell>
                 <TableCell>{formatDate(order.expirationDate)}</TableCell>
