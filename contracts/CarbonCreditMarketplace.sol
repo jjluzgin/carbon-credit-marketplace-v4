@@ -7,12 +7,14 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./CarbonCreditToken.sol";
 import "./CarbonProjectRegistry.sol";
 
-contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
-    
+contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
     bool public marketplacePaused;
-    uint16 public platformFeeBasisPoints = 120; // 1.2% initially
-    uint16 public constant closeExpiredOrderReward = 10; // 0.1% of order price
-    uint16 private constant BIPS_DENOMINATOR = 10000; // platform fee can display % with 2 decimal places
+    // Platform fee is 1.2% initially
+    uint16 public platformFeeBasisPoints = 120;
+    // Reward is 0.1% of order price
+    uint16 public constant closeExpiredOrderReward = 10;
+    // platform fee can display % with 2 decimal places
+    uint16 private constant BIPS_DENOMINATOR = 10000;
     uint256 private constant ORDER_EXPIRATION_PERIOD = 7 days;
 
     // Contracts we'll interact with
@@ -23,8 +25,8 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
         bool isActive;
         address seller;
         uint256 projectId;
-        uint256 creditsAmount;     // Total amount of credits
-        uint256 orderPrice;         // in wei
+        uint256 creditsAmount; // Total amount of credits
+        uint256 orderPrice; // in wei
         uint256 expirationTimestamp;
     }
     // Mapping of order ID to Trade Order
@@ -40,10 +42,11 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
         _;
     }
 
+    // Constructor
     constructor(
         address _carbonTokenAddress,
         address _initialOwner
-    ) payable Ownable(_initialOwner){
+    ) payable Ownable(_initialOwner) {
         carbonToken = CarbonCreditToken(_carbonTokenAddress);
     }
 
@@ -54,7 +57,7 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
     fallback() external payable {
         emit FallbackCalled(msg.sender, msg.value, msg.data);
     }
-    
+
     function updatePlatformFee(uint16 newFeeBasisPoints) external onlyOwner {
         require(newFeeBasisPoints <= 1000, "Fee cannot exceed 10%");
         platformFeeBasisPoints = newFeeBasisPoints;
@@ -68,22 +71,27 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
 
     // Create a sell order for carbon credits
     function createSellOrder(
-        uint256 _projectId, 
-        uint256 _amount, 
+        uint256 _projectId,
+        uint256 _amount,
         uint256 _pricePerCredit
     ) external whenNotPaused {
-        if(!carbonToken.isApprovedForAll(msg.sender, address(this))) 
+        if (!carbonToken.isApprovedForAll(msg.sender, address(this)))
             revert TransferNotApproved();
-        if(_pricePerCredit == 0) 
-            revert InvalidPrice(_pricePerCredit);
-        if(_amount > carbonToken.balanceOf(msg.sender, _projectId)) 
+        if (_pricePerCredit == 0) revert InvalidPrice(_pricePerCredit);
+        if (_amount > carbonToken.balanceOf(msg.sender, _projectId))
             revert InsufficientBalance(_amount);
         uint256 orderId = nextOrderId++;
 
         // Transfer tokens to this address
-        carbonToken.safeTransferFrom(msg.sender, address(this), _projectId, _amount, "");
+        carbonToken.safeTransferFrom(
+            msg.sender,
+            address(this),
+            _projectId,
+            _amount,
+            ""
+        );
 
-        unchecked{
+        unchecked {
             uint256 totalPrice = _amount * _pricePerCredit;
             uint256 expiration = block.timestamp + ORDER_EXPIRATION_PERIOD;
             // Create trade order
@@ -97,10 +105,10 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
             });
 
             emit OrderCreated(
-                orderId, 
-                msg.sender, 
-                _projectId, 
-                _amount, 
+                orderId,
+                msg.sender,
+                _projectId,
+                _amount,
                 totalPrice,
                 expiration
             );
@@ -108,28 +116,33 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
     }
 
     // Execute a trade order
-    function executeTrade(uint256 _orderId) external payable whenNotPaused nonReentrant {        
+    function executeTrade(
+        uint256 _orderId
+    ) external payable whenNotPaused nonReentrant {
         TradeOrder memory order = tradeOrders[_orderId];
-        // Revert if order is inactive
-        if(!order.isActive) revert InactiveOrder(_orderId);
-        // Revert if order is active but expired
-        if(order.isActive && order.expirationTimestamp < block.timestamp){
-            revert ExpiredOrder(_orderId); // Would this also revert the changes made by closeOrder function?
-        }
-        // Revert if sender did not include enough value for trade
-        if(msg.value < order.orderPrice) revert InsufficientPayment();
 
-        // Modify order state
+        if (!order.isActive) revert InactiveOrder(_orderId);
+        if (order.isActive && order.expirationTimestamp < block.timestamp)
+            revert ExpiredOrder(_orderId);
+        if (msg.value < order.orderPrice) revert InsufficientPayment();
+
         tradeOrders[_orderId].isActive = false;
         tradeOrders[_orderId].expirationTimestamp = 0;
-        
-        unchecked{
+
+        unchecked {
             // Calculate platform fee and seller proceeds
-            uint256 platformFee = order.orderPrice * platformFeeBasisPoints / BIPS_DENOMINATOR;
+            uint256 platformFee = (order.orderPrice * platformFeeBasisPoints) /
+                BIPS_DENOMINATOR;
             uint256 sellerProceeds = order.orderPrice - platformFee;
 
             // Transfer credits from contract to buyer
-            carbonToken.safeTransferFrom(address(this), msg.sender, order.projectId, order.creditsAmount, "");
+            carbonToken.safeTransferFrom(
+                address(this),
+                msg.sender,
+                order.projectId,
+                order.creditsAmount,
+                ""
+            );
 
             // Update account balances of seller and current address
             accountBalances[order.seller] += sellerProceeds;
@@ -141,45 +154,63 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
                 accountBalances[msg.sender] += refundAmount;
             }
             // emit event
-            emit OrderFilled(_orderId, order.projectId, msg.sender, order.seller, order.creditsAmount, order.orderPrice);
+            emit OrderFilled(
+                _orderId,
+                order.projectId,
+                msg.sender,
+                order.seller,
+                order.creditsAmount,
+                order.orderPrice
+            );
         }
     }
 
     // Cancel an existing sell order
     function closeSellOrder(uint256 _orderId) external whenNotPaused {
         TradeOrder memory order = tradeOrders[_orderId];
-        if(!order.isActive) revert InactiveOrder(_orderId);
-        if(order.seller != msg.sender) revert NotOrderOwner();
-        closeOrder(_orderId);        
-        emit OrderClosed(_orderId, msg.sender, order.projectId, order.creditsAmount, order.orderPrice);
+        if (!order.isActive) revert InactiveOrder(_orderId);
+        if (order.seller != msg.sender) revert NotOrderOwner();
+        closeOrder(_orderId);
+        emit OrderClosed(
+            _orderId,
+            msg.sender,
+            order.projectId,
+            order.creditsAmount,
+            order.orderPrice
+        );
     }
 
-    function batchCloseExpiredOrders(uint256[] calldata _orderIds) external onlyOwner {
+    // Cancel multiple expired sell orders (for Owner)
+    function batchCloseExpiredOrders(
+        uint256[] calldata _orderIds
+    ) external onlyOwner {
         uint256 length = _orderIds.length;
         uint256[] memory expiredOrders = new uint256[](length);
         uint256 expiredCount;
         uint256 payout;
         uint256 contractBalance = accountBalances[address(this)];
-        for(uint256 i = 0; i < length; i++){
+        for (uint256 i = 0; i < length; i++) {
             uint256 id = _orderIds[i];
             TradeOrder memory order = tradeOrders[id];
-            if(order.isActive && block.timestamp > order.expirationTimestamp){
+            if (order.isActive && block.timestamp > order.expirationTimestamp) {
                 closeOrder(id);
-                unchecked{
+                unchecked {
                     // Calculate payout for current order
-                    uint256 payoutForCurrentOrder = order.orderPrice * closeExpiredOrderReward / BIPS_DENOMINATOR;
+                    uint256 payoutForCurrentOrder = (order.orderPrice *
+                        closeExpiredOrderReward) / BIPS_DENOMINATOR;
                     // If contract has funds increase total payout
-                    if((payout + payoutForCurrentOrder) <= contractBalance)
+                    if ((payout + payoutForCurrentOrder) <= contractBalance)
                         payout += payoutForCurrentOrder;
                     expiredOrders[expiredCount] = id;
                     expiredCount++;
                 }
-            }
-            else if(order.isActive && block.timestamp < order.expirationTimestamp){
+            } else if (
+                order.isActive && block.timestamp < order.expirationTimestamp
+            ) {
                 emit OrderNotExpired(id);
             }
         }
-        if(payout > 0){
+        if (payout > 0) {
             // Transfer payout from address to owner balance
             accountBalances[address(this)] -= payout;
             accountBalances[msg.sender] += payout;
@@ -187,23 +218,36 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
         emit BatchExpiredOrdersClosed(expiredOrders);
     }
 
+    // Private function for closing logic
     function closeOrder(uint256 _orderId) private {
         tradeOrders[_orderId].isActive = false;
         tradeOrders[_orderId].expirationTimestamp = 0;
         TradeOrder memory order = tradeOrders[_orderId];
-        carbonToken.safeTransferFrom(address(this), order.seller, order.projectId, order.creditsAmount, "");
+        carbonToken.safeTransferFrom(
+            address(this),
+            order.seller,
+            order.projectId,
+            order.creditsAmount,
+            ""
+        );
     }
 
-    function withdrawAccountBalance(address _to, uint256 _withdrawAmount) public {
+    // Withdraw account balance from contract
+    function withdrawAccountBalance(
+        address _to,
+        uint256 _withdrawAmount
+    ) public {
         uint256 _accountBalance = accountBalances[msg.sender];
-        if(_accountBalance < _withdrawAmount)
+        if (_accountBalance < _withdrawAmount)
             revert InsufficientBalance(_accountBalance);
         accountBalances[msg.sender] -= _withdrawAmount;
-        (bool transferSuccessful,) = payable(_to).call{value: _withdrawAmount}("");
-        if(!transferSuccessful)
-            revert TransferFailed();
+        (bool transferSuccessful, ) = payable(_to).call{value: _withdrawAmount}(
+            ""
+        );
+        if (!transferSuccessful) revert TransferFailed();
     }
-    
+
+    // Errors List
     error ExpiredOrder(uint256 orderId);
     error InactiveOrder(uint256 orderId);
     error InsufficientBalance(uint256 amount);
@@ -215,39 +259,39 @@ contract CarbonCreditMarketplace is Ownable, ReentrancyGuard, ERC1155Holder  {
     error TradingIsPaused();
     error TransferFailed();
     error TransferNotApproved();
-
+    // Events List
     event BatchExpiredOrdersClosed(uint256[] orderIds);
     event FallbackCalled(address sender, uint256 value, bytes data);
     event MarketplacePauseStatusChanged(bool isPaused);
     event OrderCreated(
-        uint256 indexed orderId, 
-        address indexed seller, 
-        uint256 indexed projectId, 
+        uint256 indexed orderId,
+        address indexed seller,
+        uint256 indexed projectId,
         uint256 creditsAmount,
         uint256 orderPrice,
         uint256 expirationDate
     );
     event OrderFilled(
-        uint256 indexed orderId, 
-        uint256 projectId, 
-        address indexed buyer, 
+        uint256 indexed orderId,
+        uint256 projectId,
+        address indexed buyer,
         address indexed seller,
-        uint256 amountFilled, 
+        uint256 amountFilled,
         uint256 totalPrice
     );
     event OrderClosed(
-        uint256 indexed orderId, 
-        address indexed closedBy, 
-        uint256 indexed projectId, 
+        uint256 indexed orderId,
+        address indexed closedBy,
+        uint256 indexed projectId,
         uint256 creditsAmount,
-        uint256 orderPrice 
+        uint256 orderPrice
     );
     event ExpiredOrderClosed(
-        uint256 indexed orderId, 
-        address indexed seller, 
-        uint256 indexed projectId, 
+        uint256 indexed orderId,
+        address indexed seller,
+        uint256 indexed projectId,
         uint256 creditsAmount,
-        uint256 orderPrice 
+        uint256 orderPrice
     );
     event OrderNotExpired(uint256 orderId);
     event PlatformFeeUpdated(uint256 newFeeBasisPoints);

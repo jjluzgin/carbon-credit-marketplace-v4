@@ -46,7 +46,8 @@ contract CarbonProjectRegistry is AccessControl {
         uint256 _carbonReduction,
         string calldata _ipfsCID,
         string calldata _verificationId
-    ) external onlyRole(PROJECT_OWNER_ROLE) {
+    ) external onlyRole(PROJECT_OWNER_ROLE) 
+    {
         // Generate hash for verification ID
         bytes32 projectHash = keccak256(bytes(_verificationId));
         // Checks
@@ -80,7 +81,8 @@ contract CarbonProjectRegistry is AccessControl {
     function updateProjectMetadata(
         uint256 _projectId,
         string calldata _newIpfsCID
-    ) external {
+    ) external 
+    {
         // Check roles, we allow Auditor and Project Owner roles
         if (
             !hasRole(PROJECT_OWNER_ROLE, msg.sender) &&
@@ -110,11 +112,13 @@ contract CarbonProjectRegistry is AccessControl {
 
     function getRiskCorrectedCreditAmount(
         uint256 amount
-    ) internal view returns (uint256) {
+    ) internal view returns (uint256) 
+    {
         return (amount * mintPercentage) / 100;
     }
 
-    function acceptProject(uint256 _projectId) public onlyRole(AUDITOR_ROLE) {
+    function acceptProject(uint256 _projectId) public onlyRole(AUDITOR_ROLE) 
+    {
         // Checks
         if (!projectExists(_projectId)) revert ProjectNotFound();
         if (projects[_projectId].status != ProjectStatus.Pending) revert ProjectNotInPendingState();
@@ -137,7 +141,8 @@ contract CarbonProjectRegistry is AccessControl {
         );
     }
 
-    function rejectProject(uint256 _projectId) public onlyRole(AUDITOR_ROLE) {
+    function rejectProject(uint256 _projectId) public onlyRole(AUDITOR_ROLE) 
+    {
         // Checks
         if (!projectExists(_projectId)) revert ProjectNotFound();
         if (projects[_projectId].status == ProjectStatus.Audited) revert ProjectAlreadyAudited();
@@ -154,22 +159,26 @@ contract CarbonProjectRegistry is AccessControl {
         );
     }
 
-    function projectExists(uint256 _projectId) public view returns (bool) {
+    function projectExists(uint256 _projectId) public view returns (bool) 
+    {
         bytes32 _uniqueVerificationId = projects[_projectId]
             .uniqueVerificationId;
         if (_uniqueVerificationId == 0) return false;
         return registeredProjects[_uniqueVerificationId];
     }
 
-    function getProjectIssuedCredits(uint256 _projectId) public view returns (uint256) {
+    function getProjectIssuedCredits(uint256 _projectId) public view returns (uint256) 
+    {
         return projects[_projectId].creditsIssued;
     }
 
-    function getProjectOwner(uint256 _projectId) public view returns (address) {
+    function getProjectOwner(uint256 _projectId) public view returns (address) 
+    {
         return projects[_projectId].projectOwner;
     }
 
-    function isProjectAudited(uint256 projectId) public view returns(bool) {
+    function isProjectAudited(uint256 projectId) public view returns(bool) 
+    {
         return projects[projectId].status == ProjectStatus.Audited;
     }
 
@@ -179,7 +188,10 @@ contract CarbonProjectRegistry is AccessControl {
     error ProjectAlreadyAudited();
     error ProjectNotInPendingState();
     error ProjectNotFound();
-    error UnauthorizedAccount(address account, bytes32[2] neededRoles);
+    error UnauthorizedAccount(
+        address account, 
+        bytes32[2] neededRoles
+    );
 
     event ProjectAdded(
         uint256 indexed projectId,

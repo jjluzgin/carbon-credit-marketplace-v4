@@ -1,0 +1,9 @@
+carbon-credit-marketplace-v4
+ ┣ backend_app
+ ┃ ┗ src            # All the database entities, controllers and routers
+ ┣ contracts        # Smartcontracts
+ ┣ frontend_app     # Frontend React application
+ ┣ ignition
+ ┃ ┗ modules        # folder for hardhat deploy functions
+ ┣ shared           # dto's that had to be shared for front and backend
+ ┗ test             # Smartcontract tests

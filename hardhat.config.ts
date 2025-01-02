@@ -15,9 +15,9 @@ const config: HardhatUserConfig = {
   gasReporter:{
     currency: 'EUR',
     L1: "polygon",
-    L1Etherscan: (process.env.POLYGONSCAN_API),
-    coinmarketcap: (process.env.COINMARKETCAP_API),
-    currencyDisplayPrecision: 5,
+    // L1Etherscan: (process.env.POLYGONSCAN_API),
+    // coinmarketcap: (process.env.COINMARKETCAP_API),
+    // currencyDisplayPrecision: 5,
     // offline: true,
   }
 };

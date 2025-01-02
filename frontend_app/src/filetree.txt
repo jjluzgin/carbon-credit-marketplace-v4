@@ -1,0 +1,32 @@
+src
+ ┣ app
+ ┃ ┣ client.ts               # Entry point for client-side app
+ ┃ ┣ favicon.ico             # App favicon
+ ┃ ┣ globals.css             # Global styles
+ ┃ ┣ layout.tsx              # Main layout component
+ ┃ ┗ page.tsx                # Root page component
+ ┣ components
+ ┃ ┣ ui                      # shadcn components (UI library components)
+ ┃ ┣ AddressDisplay.tsx      # Displays blockchain addresses with copy button
+ ┃ ┣ CreateSellOrder.tsx     # Form for creating sell orders
+ ┃ ┣ FileUpload.tsx          # File upload component
+ ┃ ┣ IssueCreditsComponent.tsx  # Mint tokens component
+ ┃ ┣ ListenToEventsButton.tsx   # Button to listen for blockchain events and update DB
+ ┃ ┣ MarketplaceDashboard.tsx   # Main dashboard component
+ ┃ ┣ NavBar.tsx              # Navigation bar
+ ┃ ┣ PendingProjectsTable.tsx   # Table for projects awaiting auditor approval
+ ┃ ┣ ProjectDetailsButton.tsx   # Button to open project details
+ ┃ ┣ RetireButton.tsx        # Button to open credit retirement window
+ ┃ ┣ SellOrdersDisplay.tsx   # Component for displaying a single sell order
+ ┃ ┣ SellOrdersStore.tsx     # Component for displaying all sell orders
+ ┃ ┣ SubmitProjectCard.tsx   # Form for adding new projects
+ ┃ ┣ UserCreditsTable.tsx    # "My Tokens" view for user credits
+ ┃ ┣ UserProjectsTable.tsx   # Table of user-submitted projects
+ ┃ ┗ UserSellOrders.tsx      # Table of user-posted sell orders
+ ┣ constants
+ ┃ ┣ constants.ts            # Blockchain-related constants
+ ┃ ┗ events.ts               # Predefined blockchain events
+ ┣ hooks
+ ┃ ┗ use-toast.ts            # Custom hook for toast notifications
+ ┗ lib
+   ┗ utils.ts                # Utility functions
