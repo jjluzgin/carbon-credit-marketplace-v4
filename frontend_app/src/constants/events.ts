@@ -31,7 +31,7 @@ export const preparedOrderClosedEvent = prepareEvent({
 
 export const preparedOrderFilledEvent = prepareEvent({
   signature:
-    "event OrderFilled(address indexed buyer, address indexed seller, uint256 indexed orderId, uint256 amountFilled, uint256 totalPrice)",
+    "event OrderFilled(uint256 indexed orderId, uint256 projectId, address indexed buyer, address indexed seller, uint256 amountFilled, uint256 totalPrice)",
 });
 
 export interface ProjectAddedEvent {

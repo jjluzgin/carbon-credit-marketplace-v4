@@ -139,5 +139,7 @@ export class SellOrderController {
       return;
     }
     await orderRepository.remove(order);
+    res.status(200).json({ message: "Order removed successfully" });
+    return;
   }
 }

@@ -59,8 +59,9 @@ const UserSellOrders = () => {
   const fetchUserOrders = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`http://localhost:5000/api/orders/${account?.address}`);
+      const { data } = await axios.get(`http://localhost:5000/api/userOrders/${account?.address}`);
       const orders = data.orders;
+      console.log(orders);
       const ordersWithVerificationId = orders.map(async (order : SellOrderDto) => {
         try{
           const { data } = await axios.get(`http://localhost:5000/api/project/${order.projectId}/verificationId`);
@@ -105,21 +106,21 @@ const UserSellOrders = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[100px]">Project ID</TableHead>
-              <TableHead className="w-[100px]">Amount</TableHead>
-              <TableHead className="w-[120px]">Price</TableHead>
-              <TableHead className="w-[120px]">Expires</TableHead>
-              <TableHead className="w-[100px] text-right">Action</TableHead>
+              <TableHead className="w-[100px] text-center">Project ID</TableHead>
+              <TableHead className="w-[100px] text-center">Amount</TableHead>
+              <TableHead className="w-[120px] text-center">Price</TableHead>
+              <TableHead className="w-[120px] text-center">Expires</TableHead>
+              <TableHead className="w-[100px] text-center">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {userOrders.map((order) => (
               <TableRow key={order.orderId}>
-                <TableCell className="font-medium">#{order.verificationId}</TableCell>
-                <TableCell>{order.creditsAmount}</TableCell>
-                <TableCell>{formatPrice(order.totalPriceWei)}</TableCell>
-                <TableCell>{formatDate(order.expirationDate)}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="font-medium text-center">#{order.verificationId}</TableCell>
+                <TableCell className="text-center align-middle">{order.creditsAmount}</TableCell>
+                <TableCell className="text-center align-middle">{formatPrice(order.totalPriceWei)}</TableCell>
+                <TableCell className="text-center align-middle">{formatDate(order.expirationDate)}</TableCell>
+                <TableCell className="text-center align-middle">
                   <Button
                     onClick={() => handleCancelOrder(order.orderId)}
                     disabled={cancellingOrderId === order.orderId}

@@ -74,6 +74,8 @@ const ListenEventsButton = () => {
         events: [preparedOrderCreatedEvent, preparedOrderClosedEvent, preparedOrderFilledEvent],
         onEvents: (events) => {
           events.forEach((event) => {
+            console.log(event);
+            console.log(event.eventName);
             if (event.eventName === "OrderCreated") {
               const eventData = event.args as OrderCreatedEvent;
               console.log(`OrderCreated received: ${eventData.orderId}, ProjectId: ${eventData.projectId}`);
@@ -151,20 +153,6 @@ const ListenEventsButton = () => {
       });
   };
 
-  const addTokenHolding = async (address: string, projectId: bigint) => {
-    await axios
-      .post("http://localhost:5000/api/addTokenHolding", {
-        userAddress: address,
-        projectId: projectId.toString(),
-      })
-      .then((response) => {
-        console.log("Token holding added successfully:", response.data);
-      })
-      .catch((error) => {
-        console.error("Error adding token holding:", error);
-      });
-  }
-
   const handleCreditsMintedEvent = async (eventData: CreditsMintedEvent) => {
     addTokenHolding(eventData.to, eventData.projectId);
   };
@@ -199,50 +187,57 @@ const ListenEventsButton = () => {
   };
 
   const checkEmptyBalance = async (address: string, projectId: bigint) => {
-    const balance = await readContract({
-      contract: carbonTokenContract,
-      method: "function balanceOf(address account, uint256 id) view returns (uint256)",
-      params: [address, projectId],
-    });
-    const { data } = await axios.get(`http://localhost:5000/api/orders/${address}`);
-    const userOrders: SellOrderDto[] = data.orders;
-    console.log(userOrders);
-    const sameProjectOrders = userOrders.filter((order) => BigInt(order.projectId) === projectId);
-    if (parseInt(balance.toString()) === 0 && sameProjectOrders.length === 0) {
-      await axios
-        .delete("http://localhost:5000/api/removeTokenHolding", {
+    try {
+      const balance = await readContract({
+        contract: carbonTokenContract,
+        method: "function balanceOf(address account, uint256 id) view returns (uint256)",
+        params: [address, projectId],
+      });
+      
+      const { data } = await axios.get(`http://localhost:5000/api/userOrders/${address}`);
+      const userOrders: SellOrderDto[] = data.orders;
+      const sameProjectOrders = userOrders.filter((order) => BigInt(order.projectId) === projectId);
+      
+      if (parseInt(balance.toString()) === 0 && sameProjectOrders.length === 0) {
+        console.log("Seller empty balance");
+        await axios.delete("http://localhost:5000/api/removeTokenHolding", {
           params: {
             userAddress: address,
             projectId: projectId.toString(),
           },
-        })
-        .then((response) => {
-          console.log("Token holding removed successfully:", response.data);
-        })
-        .catch((error) => {
-          console.error("Error removing token holding:", error);
         });
+      }
+    } catch (error) {
+      console.error("Error in checkEmptyBalance:", error);
+      throw error;
     }
-  }
+  };
+  
+  const addTokenHolding = async (address: string, projectId: bigint) => {
+    try {
+      await axios.post("http://localhost:5000/api/addTokenHolding", {
+        userAddress: address,
+        projectId: projectId.toString(),
+      });
+    } catch (error) {
+      console.error("Error in addTokenHolding:", error);
+      throw error;
+    }
+  };
 
   const handleCreditsRetiredEvent = async (eventData: CreditRetiredEvent) => {
     checkEmptyBalance(eventData.retiree, eventData.projectId);
   };
 
   const handleOrderFilledEvent = async (eventData: OrderFilledEvent) => {
-    // Remove order
-    await axios
-      .delete(`http://localhost:5000/api/orders/${eventData.orderId}`)
-      .then((response) => {
-        console.log("Order closed successfully:", response.data);
-      })
-      .catch((error) => {
-        console.error("Error closing order:", error);
-      });
-    // Check if seller has any balance left
-    checkEmptyBalance(eventData.seller, eventData.projectId);
-    // Update buyer token holding
-    addTokenHolding(eventData.buyer, eventData.projectId);
+    try {
+      await axios.delete(`http://localhost:5000/api/orders/${eventData.orderId}`);
+      await checkEmptyBalance(eventData.seller, eventData.projectId);
+      await addTokenHolding(eventData.buyer, eventData.projectId);
+    } catch (error) {
+      console.error("Error processing order:", error);
+      throw error; // Re-throw error to handle it at a higher level
+    }
   };
 
   return (

@@ -15,7 +15,7 @@ Router.get(
 );
 
 Router.get(
-    "/orders/:owner",  
+    "/userOrders/:address",  
     //authentification,
     SellOrderController.GetUserSellOrders
 );
